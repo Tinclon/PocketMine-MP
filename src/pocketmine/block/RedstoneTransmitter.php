@@ -19,14 +19,11 @@
  *
 */
 
-namespace pocketmine\item;
+namespace pocketmine\block;
 
-use pocketmine\block\Block;
-
-class StringItem extends Item{
-	public function __construct($meta = 0, $count = 1){
-		parent::__construct(self::STRING, $meta, $count, "String");
-		$this->block = Block::get(Block::TRIPWIRE);
-	}
+/**
+ * Represents a block that can provide an amount of power to an adjacent redstone dust
+ */
+interface RedstoneTransmitter extends RedstoneComponent{
+	public function getPowerLevel();
 }
-
