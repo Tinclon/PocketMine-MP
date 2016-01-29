@@ -27,6 +27,7 @@ use pocketmine\command\defaults\BanListCommand;
 use pocketmine\command\defaults\DefaultGamemodeCommand;
 use pocketmine\command\defaults\DeopCommand;
 use pocketmine\command\defaults\DifficultyCommand;
+use pocketmine\command\defaults\DrawCommand;
 use pocketmine\command\defaults\DumpMemoryCommand;
 use pocketmine\command\defaults\EffectCommand;
 use pocketmine\command\defaults\EnchantCommand;
@@ -97,6 +98,7 @@ class SimpleCommandMap implements CommandMap{
 		$this->register("pocketmine", new MeCommand("me"));
 		$this->register("pocketmine", new ListCommand("list"));
 		$this->register("pocketmine", new DifficultyCommand("difficulty"));
+		$this->register("pocketmine", new DrawCommand("draw"));
 		$this->register("pocketmine", new KickCommand("kick"));
 		$this->register("pocketmine", new OpCommand("op"));
 		$this->register("pocketmine", new DeopCommand("deop"));
