@@ -33,6 +33,10 @@ class TallGrass extends Flowable{
 		$this->meta = $meta;
 	}
 
+	public function canBeActivated(){
+		return true;
+	}
+
 	public function canBeReplaced(){
 		return true;
 	}
@@ -58,6 +62,11 @@ class TallGrass extends Flowable{
 		return false;
 	}
 
+	public function onActivate(Item $item, Player $player = null){
+		if($item->getId() === Item::DYE and $item->getDamage() === 0x0F){
+			$this->getLevel()->setBlock($this->getSide(1), new DoublePlant(2));
+		}
+	}
 
 	public function onUpdate($type){
 		if($type === Level::BLOCK_UPDATE_NORMAL){
