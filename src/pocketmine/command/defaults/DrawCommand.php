@@ -632,7 +632,7 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
 		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-        $objItem = $objIssuer->getInventory()->getItemInHand();
+        $objItem = (isset($arrParams['objItem'])) ? $arrParams['objItem'] : $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
