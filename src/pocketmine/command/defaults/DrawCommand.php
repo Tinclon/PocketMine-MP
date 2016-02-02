@@ -21,6 +21,7 @@
 
 namespace pocketmine\command\defaults;
 
+use pocketmine\item\Item;
 use pocketmine\block\Block;
 use pocketmine\command\CommandSender;
 use pocketmine\Player;
@@ -73,28 +74,10 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['string'] = 'Here is a message for you.';
 		$this->arrReturnMessage['play'] = 'Playa';
 
-		//maximum values allowed for different items.
-		$this->arrMaxValues['height'] = 60;
-		$this->arrMaxValues['width'] = 60;
-		$this->arrMaxValues['radius'] = 80;
-		$this->arrMaxValues['length'] = 40;
-		$this->arrMaxValues['size'] = 60;
-		$this->arrMaxValues['pyramid'] = 98;
-
 		$this->init();
 	}
 
 	public function execute(CommandSender $sender, $currentAlias, array $args){
-
-	    if(!isset($this->arrBlockNames[0])) {
-            //array of block names to block ids
-            for($i=0;$i<=500;$i++) {
-                $objBlock = Block::get($i);
-                if (strcmp(strtoupper($objBlock->getName()),"UNKNOWN")) {
-                    $this->arrBlockNames[str_replace(' ', '', strtoupper($objBlock->getName()))] = $i;
-                }
-            }
-        }
 
         if(!$this->testPermission($sender)){
             return true;
@@ -278,9 +261,6 @@ class DrawCommand extends VanillaCommand{
 
         //setup shortcuts for the arrParams
         $arrShortCuts = array();
-        $arrShortCuts['b'] = 'block';
-        $arrShortCuts['br'] = 'block_replace';
-        $arrShortCuts['bsub'] = 'block_sub';
         $arrShortCuts['h'] = 'height';
         $arrShortCuts['t'] = 'text';
         $arrShortCuts['l'] = 'length';
@@ -288,7 +268,6 @@ class DrawCommand extends VanillaCommand{
         $arrShortCuts['s'] = 'size';
         $arrShortCuts['w'] = 'width';
         $arrShortCuts['e'] = 'elevation';
-        $arrShortCuts['bg'] = 'background';
         $arrShortCuts['r'] = 'radius';
 
         //set the arrParams to named parameters
@@ -396,7 +375,7 @@ class DrawCommand extends VanillaCommand{
 	{
 		foreach(array_reverse($this->arrRollback[$objIssuer->getName()]) as $arrCurrentRollback)
 		{
-			Block::get($arrCurrentRollback['block_type'], 0);
+			Block::get($arrCurrentRollback['block_type'], $arrCurrentRollback['block_meta']);
 			$objIssuer->getLevel()->setBlock($arrCurrentRollback['block_pos'], $objBlock);
 		}
 
@@ -408,7 +387,8 @@ class DrawCommand extends VanillaCommand{
 	{
 		$objCurrentBlock = $objIssuer->getLevel()->getBlock($block_pos);
 		$intCurrentBlockID = $objCurrentBlock->getId();
-		$this->arrRollback[$objIssuer->getName()][] = array('block_pos'=>$block_pos,'block_type'=>$intCurrentBlockID);
+		$intCurrentBlockMeta = $objCurrentBlock->getDamage();
+		$this->arrRollback[$objIssuer->getName()][] = array('block_pos'=>$block_pos,'block_type'=>$intCurrentBlockID, 'block_meta'=>$intCurrentBlockMeta);
 	}
 
 	private function __fncDrawFloor($arrParams, $objIssuer)
@@ -422,10 +402,10 @@ class DrawCommand extends VanillaCommand{
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$block_pos = new Vector3($current_x, $current_y, $current_z);
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 
 		return $this->arrReturnMessage['floor'];
 	}
@@ -437,7 +417,7 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
 		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults[$objIssuer->getName()]['depth'];
 
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,'water');
+		$objItem = Item::get(Item::STILL_WATER);
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y;
@@ -446,7 +426,7 @@ class DrawCommand extends VanillaCommand{
 		for($i=1;$i<=$intDepth;$i++)
 		{
 			$block_pos = new Vector3($current_x, $current_y - $i, $current_z);
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 		}
 
 
@@ -456,7 +436,7 @@ class DrawCommand extends VanillaCommand{
 	private function __fncCut($arrParams, $objIssuer)
 	{
 		//short cut function to remove blocks (paste coming soon). Calls draw prism and passes in air.
-		$arrParams['block'] = 'air';
+		$arrParams['objItem'] = Item::get(Item::AIR);
 		$this-> __fncDrawPrism($arrParams, $objIssuer);
 
 		return $this->arrReturnMessage['cut'];
@@ -477,11 +457,8 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
 		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+		$objItem = $objIssuer->getInventory()->getItemInHand();
 
-		//have to put some max values in place
-		if ($intWidth > $this->arrMaxValues['width']) $intWidth = $this->arrMaxValues['width'];
-		if ($intHeight > $this->arrMaxValues['height']) $intHeight = $this->arrMaxValues['height'];
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
@@ -506,7 +483,7 @@ class DrawCommand extends VanillaCommand{
 					$block_pos = new Vector3($current_x, $current_y + $i, $current_z - $i);
 				break;
 			}
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 			$intLength--;
 		}
 
@@ -518,14 +495,11 @@ class DrawCommand extends VanillaCommand{
 	{
 		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['size'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
-
-		//check for max size
-		if ($intSize > $this->arrMaxValues['pyramid']) $intSize = $this->arrMaxValues['pyramid'];
 
 		$intPositionAdjustment = $intSize/2 -1;
 
@@ -558,7 +532,7 @@ class DrawCommand extends VanillaCommand{
 				break;
 			}
 
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intStartingSize,'intWidth'=>$intStartingSize,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intStartingSize,'intWidth'=>$intStartingSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 
 			if($intStartingSize >= $intSize)
 			{
@@ -582,17 +556,8 @@ class DrawCommand extends VanillaCommand{
 	{
 		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = (isset($arrParams['block'])) ? $this->__fncGetBlockID($objIssuer, $arrParams['block']) : [$this->arrDefaults[$objIssuer->getName()]['block'], $this->arrDefaults[$objIssuer->getName()]['block_sub']];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
 
-		//have to put some max values in place
-		if ($intRadius > $this->arrMaxValues['radius']) $intRadius = $this->arrMaxValues['radius'];
-
-
-        // TODO: Make the sphere around me
-        $current_x = $this->objStartingVector->x;
-        $current_y = $this->objStartingVector->y + $intElevation;
-        $current_z = $this->objStartingVector->z;
-        /*
 		$current_y = $this->objStartingVector->y + $intRadius + $intElevation;
 		switch($this->objStartingDirection)
 		{
@@ -613,9 +578,8 @@ class DrawCommand extends VanillaCommand{
 				$current_z = $this->objStartingVector->z - $intRadius;
 			break;
 		}
-		*/
 
-        $objBlock = Block::get($arrBlockID[0], $arrBlockID[1]);
+        $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
 
 		for($x = -$intRadius; $x < $intRadius; $x++){
 			for($y = -$intRadius; $y < $intRadius; $y++){
@@ -638,16 +602,6 @@ class DrawCommand extends VanillaCommand{
 	private function __fncSetDefaults($arrParams, $objIssuer)
 	{
 		$blnNeedSaved = 0;
-
-		if(isset($arrParams['block']) || isset($arrParams['block_sub']))
-		{
-			$strBlock = (isset($arrParams['block'])) ? $arrParams['block'] : $this->arrDefaults[$objIssuer->getName()]['block'];
-			$strBlockSub = (isset($arrParams['block_sub'])) ? $arrParams['block_sub'] : $this->arrDefaults[$objIssuer->getName()]['block_sub'];
-			$arrBlockID = $this->__fncGetBlockID($objIssuer,$strBlock."|".$strBlockSub);
-
-			$arrParams['block'] = $arrBlockID[0];
-			$arrParams['block_sub'] = $arrBlockID[1];
-		}
 
 		foreach($arrParams AS $currentKey=>$currentValue)
 		{
@@ -678,23 +632,7 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
 		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
-
-
-		//if we are calling replace, then we need to pass in a second block to the rectangle
-		if (isset($arrParams['block_replace']))
-		{
-			$arrBlockReplaceID = $this->__fncGetBlockID($objIssuer,$arrParams['block_replace']);
-		}
-		else
-		{
-			$arrBlockReplaceID = '';
-		}
-
-		//have to put some max values in place
-		if ($intWidth > $this->arrMaxValues['width']) $intWidth = $this->arrMaxValues['width'];
-		if ($intLength > $this->arrMaxValues['length']) $intLength = $this->arrMaxValues['length'];
-		if ($intHeight > $this->arrMaxValues['height']) $intHeight = $this->arrMaxValues['height'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
@@ -703,7 +641,7 @@ class DrawCommand extends VanillaCommand{
 		for($i=0;$i<$intHeight;$i++)
 		{
 			$block_pos = new Vector3($current_x, $current_y + $i, $current_z);
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID,'arrBlockReplaceType'=>$arrBlockReplaceID));
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 		}
 
 
@@ -715,9 +653,7 @@ class DrawCommand extends VanillaCommand{
 		//first get the coordinates of where the user is standing
 		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['length'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
-
-		if ($intSize > $this->arrMaxValues['size']) $intSize = $this->arrMaxValues['size'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
@@ -726,7 +662,7 @@ class DrawCommand extends VanillaCommand{
 		for($i=0;$i<$intSize;$i++)
 		{
 			$block_pos = new Vector3($current_x, $current_y + $i, $current_z);
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 		}
 
 
@@ -738,10 +674,7 @@ class DrawCommand extends VanillaCommand{
 		//first get the coordinates of where the user is standing
 		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['length'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
-
-		//check for max size
-		if ($intSize > $this->arrMaxValues['pyramid']) $intSize = $this->arrMaxValues['pyramid'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
@@ -766,7 +699,7 @@ class DrawCommand extends VanillaCommand{
 				break;
 			}
 
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intCurrentSize,'intWidth'=>$intCurrentSize,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+    		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intCurrentSize,'intWidth'=>$intCurrentSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 			$intCurrentSize = $intCurrentSize - 2;
 		}
 
@@ -784,10 +717,10 @@ class DrawCommand extends VanillaCommand{
 		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
 		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['width'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+        $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$block_pos = new Vector3($current_x, $current_y + $intElevation, $current_z);
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intLength,'intWidth'=>$intHeight,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intLength,'intWidth'=>$intHeight,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 		return $this->arrReturnMessage['wall'];
 	}
 
@@ -797,14 +730,12 @@ class DrawCommand extends VanillaCommand{
 	{
 		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['size'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 		//first get the coordinates of where the user is standing
 		$current_x = (int) $this->objStartingVector->x + 1;
 		$current_y = (int) $this->objStartingVector->y + $intElevation;
 		$current_z = (int) $this->objStartingVector->z + 1;
-
-		if ($intSize > $this->arrMaxValues['size']) $intSize = $this->arrMaxValues['size'];
 
 		switch($this->objStartingDirection)
 		{
@@ -847,12 +778,12 @@ class DrawCommand extends VanillaCommand{
 			break;
 		}
 
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objSideWall,'arrBlockType'=>$arrBlockID));
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objOppositeSideWallPos,'arrBlockType'=>$arrBlockID));
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objFrontWallPos,'arrBlockType'=>$arrBlockID,'intCurrentDirection'=>$intOppositeDirection));
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objBackWallPos,'arrBlockType'=>$arrBlockID,'intCurrentDirection'=>$intOppositeDirection));
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$objFloor,'arrBlockType'=>$arrBlockID));
-		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$objCeiling,'arrBlockType'=>$arrBlockID));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objSideWall,'objItem'=>$objItem));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objOppositeSideWallPos,'objItem'=>$objItem));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objFrontWallPos,'objItem'=>$objItem,'intCurrentDirection'=>$intOppositeDirection));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>$intSize - 1,'intWidth'=>$intSize - 1,'objStartingPos'=>$objBackWallPos,'objItem'=>$objItem,'intCurrentDirection'=>$intOppositeDirection));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$objFloor,'objItem'=>$objItem));
+		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$objCeiling,'objItem'=>$objItem));
 
 		return $this->arrReturnMessage['box'];
 	}
@@ -860,11 +791,10 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawString($arrParams, $objIssuer)
 	{
 
-		$arrBlockID = $this->__fncGetBlockID($objIssuer,$arrParams['block']);
+		$objItem = $objIssuer->getInventory()->getItemInHand();
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
-		$strBackgroundBlock = (isset($arrParams['background'])) ?  $arrParams['background'] : 'air';
-		$arrBlockBackgroundID = $this->__fncGetBlockID($objIssuer,$strBackgroundBlock);
-        $objBackgroundBlock = Block::get($arrBlockBackgroundID[0], $arrBlockBackgroundID[1]);
+        $objBackgroundItem = Item::get(Item::AIR);
+        $objBackgroundBlock = Block::get($objBackgroundItem->getId(), $objBackgroundItem->getDamage());
 
 		$arrFullString = str_split(strtolower($arrParams['text']));
 
@@ -921,7 +851,7 @@ class DrawCommand extends VanillaCommand{
 		{
 			if(isset($arrSmall[$strCurrentChar]))
 			{
-				$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>5,'intWidth'=>8,'objStartingPos'=>$block_pos,'arrBlockType'=>$arrBlockID,'intCurrentDirection'=>$intOppositeDirection));
+				$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'vertical','intLength'=>5,'intWidth'=>8,'objStartingPos'=>$block_pos,'objItem'=>$objItem,'intCurrentDirection'=>$intOppositeDirection));
 				$block_pos = $this->__fncCalculateStringPosition($block_pos ,$this->objStartingDirection,7);
 
 				foreach($arrSmall[$strCurrentChar] AS $intCurrentRemoval)
@@ -1052,15 +982,10 @@ class DrawCommand extends VanillaCommand{
 		$intLength = (isset($criteria['intLength'])) ? (int) $criteria['intLength'] : $this->arrDefaults[$objIssuer->getName()]['length'];
 		//$intWidth is the width
 		$intWidth = (isset($criteria['intWidth'])) ? (int) $criteria['intWidth'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		//$arrBlockType is the type of block to use.
-		$arrBlockType = (isset($criteria['arrBlockType'])) ? $criteria['arrBlockType'] : array($this->arrDefaults[$objIssuer->getName()]['block'],$this->arrDefaults[$objIssuer->getName()]['block_sub']);
+		//$objItem is the type of block to use.
+		$objItem = (isset($criteria['objItem'])) ? $criteria['objItem'] : $objItem = $objIssuer->getInventory()->getItemInHand();
 
-		if (isset($criteria['arrBlockReplaceType']) && !empty($criteria['arrBlockReplaceType']))
-		{
-			$arrBlockReplaceType = $criteria['arrBlockReplaceType'][0];
-		}
-
-		$objBlock = Block::get($arrBlockType[0], $arrBlockType[1]);
+		$objBlock = Block::get($objItem->getId(), $objItem->getDamage());
 
 		//$intCurrentDirection is 0,1,2,3 indicating the direction that the wall needs to be built. default is the way the player is facing.
 		$intCurrentDirection = (isset($criteria['intCurrentDirection'])) ? $criteria['intCurrentDirection'] : $this->objStartingDirection;
@@ -1143,66 +1068,12 @@ class DrawCommand extends VanillaCommand{
 				$this->__fncSetRollback($objIssuer,$block_pos);
 				$arrRectangle[] = $block_pos;
 
-				if (isset($arrBlockReplaceType))
-				{
-					$objCurrentBlock = $objIssuer->getLevel()->getBlock($block_pos);
-					$intCurrentBlockID = $objCurrentBlock->getId();
-
-
-					if ($intCurrentBlockID == $arrBlockReplaceType)
-					{
-						$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
-					}
-				}
-				else
-				{
-					$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
-				}
-
+				$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
 
 			}
 		}
 
 		return $arrRectangle;
-	}
-
-	private function __fncGetBlockID($objIssuer,$strInput)
-	{
-		$arrTempBlockData = explode("|",$strInput);
-		$arrColors = array('orange'=>1,'magenta'=>2,'light_blue'=>3,'yellow'=>4,'lime'=>5,'pink'=>6,'gray'=>7,'light_gray'=>8,'cyan'=>9,'purple'=>10,'blue'=>11,'brown'=>12,'green'=>13,'red'=>14,'black'=>15);
-
-		if (is_numeric($arrTempBlockData[0]))
-		{
-			$arrBlockData[0] = $arrTempBlockData[0];
-		}
-		elseif (defined(strtoupper($arrTempBlockData[0]) . "_BLOCK"))
-		{
-			$arrBlockData[0]  = strtoupper($arrTempBlockData[0]) . "_BLOCK";
-		}
-		elseif (isset($this->arrBlockNames[strtoupper($arrTempBlockData[0])]))
-		{
-			$arrBlockData[0]  = $this->arrBlockNames[strtoupper($arrTempBlockData[0])];
-		}
-		else
-		{
-			$arrBlockData[0]  = $this->arrDefaults[$objIssuer->getName()]['block'];
-		}
-
-
-		if (isset($arrTempBlockData[1]) && is_numeric($arrTempBlockData[1]))
-		{
-			$arrBlockData[1] = (int) $arrTempBlockData[1];
-		}
-		elseif(isset($arrTempBlockData[1]) && isset($arrColors[$arrTempBlockData[1]]))
-		{
-			$arrBlockData[1] = $arrColors[$arrTempBlockData[1]];
-		}
-		else
-		{
-			$arrBlockData[1] = $this->arrDefaults[$objIssuer->getName()]['block_sub'];
-		}
-
-		return $arrBlockData;
 	}
 
 	private function __fncSetupUserDefaults($objIssuer)
@@ -1253,28 +1124,27 @@ class DrawCommand extends VanillaCommand{
 			break;
 
 			case 'floor':
-				$strOutput .= "Usage: /$strAlias floor b:gold l:12 w:12 h:-1\n";
+				$strOutput .= "Usage: /$strAlias floor l:12 w:12 e:-1\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(b)lock, (l)ength, (w)idth, and (e)levation \n";
+				$strOutput .= "(l)ength, (w)idth, and (e)levation\n";
 				$strOutput .= "This will draw a floor in front of you.\n";
 				$strOutput .= "e:-1 will draw on the level you are standing.\n";
 				$strOutput .= "e:6 will draw a ceiling.\n";
 			break;
 
 			case 'wall':
-				$strOutput .= "Usage: /$strAlias wall b:iron l:8 h:4\n";
+				$strOutput .= "Usage: /$strAlias wall l:8 h:4\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(b)lock, (l)ength,(h)eight, and (e)elevation\n";
+				$strOutput .= "(l)ength,(h)eight, and (e)elevation\n";
 				$strOutput .= "This will draw a wall in front of you.\n";
 				$strOutput .= "Your direction will control the wall direction.\n";
 			break;
 
 			case 'box':
-				$strOutput .= "Usage: /$strAlias box s:15 b:dirt\n";
+				$strOutput .= "Usage: /$strAlias box s:15 \n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(s)ize, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(s)ize, and (e)elevation\n";
 				$strOutput .= "This will draw a hollow square box in front of you.\n";
-				$strOutput .= "Max size of 30.\n";
 			break;
 
 			case 'cube':
@@ -1282,55 +1152,49 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(s)ize, (e)elevation, and (b)lock,\n";
 				$strOutput .= "This will draw a solid square cube in front of you.\n";
-				$strOutput .= "Max size of 30.\n";
 			break;
 
 			case 'pyramid':
-				$strOutput .= "Usage: /$strAlias pyramid s:40 b:sand\n";
+				$strOutput .= "Usage: /$strAlias pyramid s:40\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(s)ize, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(s)ize, and (e)elevation\n";
 				$strOutput .= "This will draw a solid pyramid in front of you.\n";
-				$strOutput .= "Max size of 49.\n";
 			break;
 
 			case 'diamond':
-				$strOutput .= "Usage: /$strAlias diamond s:20 b:sand\n";
+				$strOutput .= "Usage: /$strAlias diamond s:20\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(s)ize, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(s)ize, and (e)elevation\n";
 				$strOutput .= "This will draw a solid diamond in front of you.\n";
-				$strOutput .= "Max size of 49.\n";
 			break;
 
 			case 'sphere':
-				$strOutput .= "Usage: /$strAlias sphere r:15 b:sand\n";
+				$strOutput .= "Usage: /$strAlias sphere r:15\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(r)adius, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(r)adius, and (e)elevation\n";
 				$strOutput .= "This will draw a solid sphere in front of you.\n";
-				$strOutput .= "Max radius of 20.\n";
 			break;
 
 			case 'steps':
-				$strOutput .= "Usage: /$strAlias pyramid s:40 b:sand\n";
+				$strOutput .= "Usage: /$strAlias steps s:40\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(h)eight, (w)idth, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(h)eight, (w)idth, and (e)elevation\n";
 				$strOutput .= "This will draw a steps in front of you.\n";
-				$strOutput .= "Max size of 30.\n";
 			break;
 
 			case 'write':
-				$strOutput .= "Usage: /$strAlias write b:gold t:test message\n";
+				$strOutput .= "Usage: /$strAlias write:test message\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(t)ext, (e)elevation, and (b)lock,\n";
+				$strOutput .= "(t)ext, and (e)elevation\n";
 				$strOutput .= "This will write a block message for you.\n";
 				$strOutput .= "Each letter is 8 blocks height and 5 blocks wide.\n";
 			break;
 
 			case 'prism':
-				$strOutput .= "Usage: /$strAlias prism b:gold w:10 h:5 l:15 e:5\n";
+				$strOutput .= "Usage: /$strAlias prism w:10 h:5 l:15 e:5\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(b)lock, (l)ength, (w)idth, (h)eight, and (e)elevation\n";
+				$strOutput .= "(l)ength, (w)idth, (h)eight, and (e)elevation\n";
 				$strOutput .= "This will draw a rectangle prism with the given dimensions.\n";
-				$strOutput .= "Max length, width, height of 30.\n";
 			break;
 
 			case 'cut':
@@ -1340,16 +1204,9 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "This will replace given rectangle prism with air.\n";
 			break;
 
-			case 'replace':
-				$strOutput .= "Usage: /$strAlias replace br:lava b:air w:10 h:5 l:15\n";
-				$strOutput .= "Optional params:\n";
-				$strOutput .= "(b)lock, (br)block_replace, (l)ength, (w)idth, (h)eight, and (e)elevation\n";
-				$strOutput .= "This will replace the block_replace type with the given block.\n";
-			break;
-
 			case 'record':
 				$strOutput .= "Usage: /$strAlias record start|save|cancel|delete\n";
-				$strOutput .= "Allows user to save andy /draw commands:\n";
+				$strOutput .= "Allows user to save and /draw commands:\n";
 				$strOutput .= "Save and Delete will also need a name param.\n";
 			break;
 
@@ -1359,16 +1216,16 @@ class DrawCommand extends VanillaCommand{
 			break;
 
 			case 'set':
-				$strOutput .= "Usage: /$strAlias set b:gold\n";
+				$strOutput .= "Usage: /$strAlias set w:10\n";
 				$strOutput .= "Allows you to change the defaults values.\n";
 				$strOutput .= "Possible defaults:\n";
-				$strOutput .= "block, block_sub, height, width, length, elevation, size, depth, radius\n";
+				$strOutput .= "height, width, length, elevation, size, depth, radius\n";
 			break;
 
 			default:
 				$strOutput .= "Usage: /$strAlias <command> [parameters...]\n";
 				$strOutput .= "Possible commands:\n";
-				$strOutput .= "floor, wall, pool, box, cube, pyramid, diamond, steps, sphere, write, prism, cut, replace, repeat, undo, record, play, set\n";
+				$strOutput .= "floor, wall, pool, box, cube, pyramid, diamond, steps, sphere, write, prism, cut, repeat, undo, record, play, set\n";
 				$strOutput .= "/$strAlias <command> help for more details.\n";
 		}
 
