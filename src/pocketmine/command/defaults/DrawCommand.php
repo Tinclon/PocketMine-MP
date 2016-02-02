@@ -22,6 +22,7 @@
 namespace pocketmine\command\defaults;
 
 use pocketmine\item\Item;
+use pocketmine\item\ItemBlock;
 use pocketmine\block\Block;
 use pocketmine\command\CommandSender;
 use pocketmine\Player;
@@ -62,8 +63,9 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['cut'] = 'Blocks have been removed.';
 		$this->arrReturnMessage['replace'] = 'Blocks have been replaced.';
 		$this->arrReturnMessage['steps'] = 'Stairway to heaven.';
-		$this->arrReturnMessage['diamond'] = 'Diamonds are a girl\'s bestfriend.';
+		$this->arrReturnMessage['diamond'] = 'Diamonds are a girl\'s best friend.';
 		$this->arrReturnMessage['sphere'] = 'The circle of life.';
+		$this->arrReturnMessage['bubble'] = 'In a bubble of happiness.';
 		$this->arrReturnMessage['set_defaults'] = 'Defaults have been updated.';
 		$this->arrReturnMessage['error_defaults'] = 'No defaults to update.';
 		$this->arrReturnMessage['prism'] = 'Run for your life, it\'s a Cuboid!.';
@@ -343,6 +345,10 @@ class DrawCommand extends VanillaCommand{
                 $strOutput = $this->__fncDrawSphere($arrNamedParams, $objIssuer);
             break;
 
+            case 'bubble':
+                $strOutput = $this->__fncDrawBubble($arrNamedParams, $objIssuer);
+            break;
+
             case 'diamond':
                 $strOutput = $this->__fncDrawDiamond($arrNamedParams, $objIssuer);
             break;
@@ -552,41 +558,60 @@ class DrawCommand extends VanillaCommand{
 		return $this->arrReturnMessage['diamond'];
 	}
 
-	private function __fncDrawSphere($arrParams, $objIssuer)
+	private function __fncDrawBubble($arrParams, $objIssuer)
+	{
+	    $this->__fncDrawSphere($arrParams, $objIssuer, true);
+        return $this->arrReturnMessage['bubble'];
+	}
+
+	private function __fncDrawSphere($arrParams, $objIssuer, $hollow = false)
 	{
 		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
-		$current_y = $this->objStartingVector->y + $intRadius + $intElevation;
-		switch($this->objStartingDirection)
-		{
-			case '0':
-				$current_x = $this->objStartingVector->x + $intRadius;
-				$current_z = $this->objStartingVector->z + $intRadius;
-			break;
-			case '1':
-				$current_x = $this->objStartingVector->x - $intRadius;
-				$current_z = $this->objStartingVector->z + $intRadius;
-			break;
-			case '2':
-				$current_x = $this->objStartingVector->x - $intRadius;
-				$current_z = $this->objStartingVector->z - $intRadius;
-			break;
-			case '3':
-				$current_x = $this->objStartingVector->x + $intRadius;
-				$current_z = $this->objStartingVector->z - $intRadius;
-			break;
-		}
+        if($hollow) {
+            $current_x = $this->objStartingVector->x;
+            $current_y = $this->objStartingVector->y + $intElevation;
+            $current_z = $this->objStartingVector->z;
+        } else {
+            $current_y = $this->objStartingVector->y + $intRadius + $intElevation;
+            switch($this->objStartingDirection)
+            {
+                case '0':
+                    $current_x = $this->objStartingVector->x + $intRadius;
+                    $current_z = $this->objStartingVector->z + $intRadius;
+                break;
+                case '1':
+                    $current_x = $this->objStartingVector->x - $intRadius;
+                    $current_z = $this->objStartingVector->z + $intRadius;
+                break;
+                case '2':
+                    $current_x = $this->objStartingVector->x - $intRadius;
+                    $current_z = $this->objStartingVector->z - $intRadius;
+                break;
+                case '3':
+                    $current_x = $this->objStartingVector->x + $intRadius;
+                    $current_z = $this->objStartingVector->z - $intRadius;
+                break;
+            }
+        }
 
-        $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        if($objItem instanceof ItemBlock) {
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        } else {
+            $objItem = Item::get(Item::AIR);
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        }
 
 		for($x = -$intRadius; $x < $intRadius; $x++){
 			for($y = -$intRadius; $y < $intRadius; $y++){
 				for($z = -$intRadius; $z < $intRadius; $z++){
 					$intDist = sqrt(($x*$x + $y*$y + $z*$z)); //Calculates the distance
 					if($intDist > $intRadius) continue;
-                    if ($intDist < $intRadius - 1.414213562373095) continue;     //To make it hollow
+					if ($hollow) {
+                        if ($intDist < $intRadius - 1.414213562373095) continue;
+                    }
 
 					$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
 					$this->__fncSetRollback($objIssuer,$block_pos);
@@ -985,7 +1010,12 @@ class DrawCommand extends VanillaCommand{
 		//$objItem is the type of block to use.
 		$objItem = (isset($criteria['objItem'])) ? $criteria['objItem'] : $objItem = $objIssuer->getInventory()->getItemInHand();
 
-		$objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        if($objItem instanceof ItemBlock) {
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        } else {
+            $objItem = Item::get(Item::AIR);
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        }
 
 		//$intCurrentDirection is 0,1,2,3 indicating the direction that the wall needs to be built. default is the way the player is facing.
 		$intCurrentDirection = (isset($criteria['intCurrentDirection'])) ? $criteria['intCurrentDirection'] : $this->objStartingDirection;
@@ -1173,6 +1203,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(r)adius, and (e)elevation\n";
 				$strOutput .= "This will draw a solid sphere in front of you.\n";
+			break;
+
+			case 'bubble':
+				$strOutput .= "Usage: /$strAlias bubble r:15\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(r)adius, and (e)elevation\n";
+				$strOutput .= "This will draw a hollow bubble around you.\n";
 			break;
 
 			case 'steps':
