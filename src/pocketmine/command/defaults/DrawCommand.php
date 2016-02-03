@@ -599,9 +599,9 @@ class DrawCommand extends VanillaCommand{
             $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
         }
 
-		for($x = -$intRadius; $x < $intRadius; $x++){
-			for($y = -$intRadius; $y < $intRadius; $y++){
-				for($z = -$intRadius; $z < $intRadius; $z++){
+		for($x = $intRadius; $x >= -$intRadius; $x--){
+			for($y = $intRadius; $y >= -$intRadius; $y--){
+				for($z = $intRadius; $z >= -$intRadius; $z--){
 					$intDist = sqrt(($x*$x + $y*$y + $z*$z)); //Calculates the distance
 					if($intDist > $intRadius) continue;
 					if ($hollow) {
