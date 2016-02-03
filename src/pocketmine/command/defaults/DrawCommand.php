@@ -375,7 +375,7 @@ class DrawCommand extends VanillaCommand{
 	{
 		foreach(array_reverse($this->arrRollback[$objIssuer->getName()]) as $arrCurrentRollback)
 		{
-			Block::get($arrCurrentRollback['block_type'], $arrCurrentRollback['block_meta']);
+			$objBlock = Block::get($arrCurrentRollback['block_type'], $arrCurrentRollback['block_meta']);
 			$objIssuer->getLevel()->setBlock($arrCurrentRollback['block_pos'], $objBlock);
 		}
 
