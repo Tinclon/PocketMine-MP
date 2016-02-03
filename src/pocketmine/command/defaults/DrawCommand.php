@@ -271,6 +271,7 @@ class DrawCommand extends VanillaCommand{
         $arrShortCuts['w'] = 'width';
         $arrShortCuts['e'] = 'elevation';
         $arrShortCuts['r'] = 'radius';
+        $arrShortCuts['a'] = 'aroundme';
 
         //set the arrParams to named parameters
         $arrNamedParams = array();
@@ -357,14 +358,7 @@ class DrawCommand extends VanillaCommand{
                 $strOutput = $this->__fncSetDefaults($arrNamedParams, $objIssuer);
             break;
             case 'undo':
-                if ($arrParams[0] == 'help')
-                {
-                    return $this->__fncHelp('help');
-                }
-                else
-                {
-                    $strOutput = $this->__fncUndo($arrParams, $objIssuer);
-                }
+                $strOutput = $this->__fncUndo($arrNamedParams, $objIssuer);
             break;
         }
 
@@ -568,9 +562,10 @@ class DrawCommand extends VanillaCommand{
 	{
 		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$aroundMe = (isset($arrParams['aroundme']) && $arrParams['aroundme'] == 't') ? true : false;
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
-        if($hollow) {
+        if($hollow || $aroundMe) {
             $current_x = $this->objStartingVector->x;
             $current_y = $this->objStartingVector->y + $intElevation;
             $current_z = $this->objStartingVector->z;
@@ -1199,9 +1194,9 @@ class DrawCommand extends VanillaCommand{
 			break;
 
 			case 'sphere':
-				$strOutput .= "Usage: /$strAlias sphere r:15\n";
+				$strOutput .= "Usage: /$strAlias sphere r:15 a:t\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(r)adius, and (e)elevation\n";
+				$strOutput .= "(r)adius, (e)elevation, and (a)roundme\n";
 				$strOutput .= "This will draw a solid sphere in front of you.\n";
 			break;
 
