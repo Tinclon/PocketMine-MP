@@ -98,7 +98,7 @@ class SimpleCommandMap implements CommandMap{
 		$this->register("pocketmine", new MeCommand("me"));
 		$this->register("pocketmine", new ListCommand("list"));
 		$this->register("pocketmine", new DifficultyCommand("difficulty"));
-		$this->register("pocketmine", new DrawCommand("draw"));
+		$this->register("pocketmine", new DrawCommand("draw", $this->server));
 		$this->register("pocketmine", new KickCommand("kick"));
 		$this->register("pocketmine", new OpCommand("op"));
 		$this->register("pocketmine", new DeopCommand("deop"));

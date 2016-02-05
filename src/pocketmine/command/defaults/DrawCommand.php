@@ -27,15 +27,18 @@ use pocketmine\block\Block;
 use pocketmine\command\CommandSender;
 use pocketmine\Player;
 use pocketmine\math\Vector3;
+use pocketmine\utils\Config;
 
 class DrawCommand extends VanillaCommand{
-	public function __construct($name){
+	public function __construct($name, $server){
 		parent::__construct(
 			$name,
 			"Place blocks in various shapes",   // Description
 			"/draw help"                        //Usage
 		);
 		$this->setPermission("pocketmine.command.draw");
+
+        $this->server = $server;
 
 		$this->arrRollback = array();
 		$this->arrLastCommand = array();
@@ -44,7 +47,6 @@ class DrawCommand extends VanillaCommand{
 		$this->blnPlaying = 0;
 		$this->objStartingVector = array();
 		$this->objStartingDirection = '';
-		$this->arrDefaults = array();
 
 		//Return messages
 		$this->arrReturnMessage['error_drawFromCommandLine'] = 'Can not run draw from command line.';
@@ -90,21 +92,13 @@ class DrawCommand extends VanillaCommand{
         $sender->sendMessage($this->commandHandler($args[0], $args, $sender, $currentAlias));
 
         return true;
-
     }
 
 
 	public function init()
 	{
-		// TODO: Commenting out $this->api stuff
-		/*
-		$this->config = new Config($this->api->plugin->configPath($this)."macros.yml", CONFIG_YAML, array());
-		$this->config = new Config($this->api->plugin->configPath($this)."config.yml", CONFIG_YAML, array());
-
-		//Load the existing macros that have been saved.
-		$this->arrSavedMacros = $this->api->plugin->readYAML($this->api->plugin->configPath($this). "macros.yml");
-		$this->arrDefaults = $this->api->plugin->readYAML($this->api->plugin->configPath($this). "config.yml");
-		*/
+		$this->arrSavedMacros = new Config($this->server->getDataPath() . "draw.macros.yml", Config::YAML, array());
+		$this->arrDefaults = new Config($this->server->getDataPath() . "draw.config.yml", Config::YAML, array());
 	}
 
 	public function commandHandler($strCmd, $arrParams, $objIssuer, $strAlias, $objStartingVector = array(),$objStartingDirection = '')
@@ -117,7 +111,7 @@ class DrawCommand extends VanillaCommand{
 		if($strCmd === "userinfo")
 		{
         	$return = 'x: ' . $objIssuer->getLocation()->x . ' y: ' . $objIssuer->getLocation()->y . ' z: ' . $objIssuer->getLocation()->z . ' dir:' . $objIssuer->getDirection();
-			$objIssuer->getServer()->getLogger()->info($objIssuer->getName() . ' ' . $return);
+			$this->server->getLogger()->info($objIssuer->getName() . ' ' . $return);
 			return $return;
         }
 
@@ -150,7 +144,7 @@ class DrawCommand extends VanillaCommand{
 
         $strSubCmd = strtolower(array_shift($arrParams));
 
-        $objIssuer->getServer()->getLogger()->info($objIssuer->getName() . '(dir: ' . $objIssuer->getDirection() . ') \\' . $strAlias . ' ' . $strSubCmd . ' ' . implode(' ',$arrParams));
+        $this->server->getLogger()->info($objIssuer->getName() . '(dir: ' . $objIssuer->getDirection() . ') \\' . $strAlias . ' ' . $strSubCmd . ' ' . implode(' ',$arrParams));
 
         if($strSubCmd == 'help')
         {
@@ -177,17 +171,16 @@ class DrawCommand extends VanillaCommand{
             {
                 if (isset($arrParams[1]))
                 {
-                    if (!isset($this->arrSavedMacros[$arrParams[1]]))
+                    if (!$this->arrSavedMacros->exists($arrParams[1]))
                     {
                         $strOutput = $this->arrReturnMessage['recording_saved'];
 
-                        $this->arrSavedMacros[$arrParams[1]] = json_encode($this->arrCurrentMacro[$objIssuer->getName()]);
+                        $this->arrSavedMacros->set($arrParams[1], json_encode($this->arrCurrentMacro[$objIssuer->getName()]));
 
                         $this->blnSavingMacro = 0;
                         $this->arrCurrentMacro[$objIssuer->getName()] = array();
 
-                        // TODO: Commenting out $this->api stuff
-                        //$this->api->plugin->writeYAML($this->api->plugin->configPath($this)."macros.yml", $this->arrSavedMacros);
+                        $this->arrSavedMacros->save();
 
                         return $strOutput;
                     }
@@ -203,11 +196,10 @@ class DrawCommand extends VanillaCommand{
             }
             elseif ($arrParams[0] == 'delete')
             {
-                if (isset($arrParams[1]) && isset($this->arrSavedMacros[$arrParams[1]]))
+                if (isset($arrParams[1]) && $this->arrSavedMacros->exists($arrParams[1]))
                 {
-                    unset($this->arrSavedMacros[$arrParams[1]]);
-                    // TODO: Commenting out $this->api stuff
-                    //$this->api->plugin->writeYAML($this->api->plugin->configPath($this)."macros.yml", $this->arrSavedMacros);
+                    $this->arrSavedMacros->remove($arrParams[1]);
+                    $this->arrSavedMacros->save();
 
                     return $this->arrReturnMessage['recording_deleted'];
                 }
@@ -235,7 +227,7 @@ class DrawCommand extends VanillaCommand{
         }
         elseif($strSubCmd == 'play')
         {
-            if (isset($this->arrSavedMacros[$arrParams[0]]))
+            if ($this->arrSavedMacros->exists($arrParams[0]))
             {
                 $this->arrLastCommand['strCmd'] = $strCmd;
                 $this->arrLastCommand['arrParams'] = $arrOriginalParams;
@@ -246,7 +238,7 @@ class DrawCommand extends VanillaCommand{
             }
             else
             {
-                $strAvailableMacros = implode(", ",array_keys($this->arrSavedMacros));
+                $strAvailableMacros = implode(", ",array_keys($this->arrSavedMacros->getAll()));
                 return $this->arrReturnMessage['recording_list'] . $strAvailableMacros;
             }
         }
@@ -405,8 +397,8 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawFloor($arrParams, $objIssuer)
 	{
 		//first get the coordinates of where the user is standing
-		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : -1;
 
 		$current_x = $this->objStartingVector->x;
@@ -424,9 +416,9 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawPool($arrParams, $objIssuer)
 	{
 		//first get the coordinates of where the user is standing
-		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults[$objIssuer->getName()]['depth'];
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults->get($objIssuer->getName())['depth'];
 
 		$objItem = Item::get(Item::STILL_WATER);
 
@@ -447,9 +439,9 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawLavaLake($arrParams, $objIssuer)
 	{
 		//first get the coordinates of where the user is standing
-		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults[$objIssuer->getName()]['depth'];
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults->get($objIssuer->getName())['depth'];
 
 		$objItem = Item::get(Item::STILL_LAVA);
 
@@ -488,9 +480,9 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawSteps($arrParams, $objIssuer)
 	{
 		//incoming parameters
-		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['height'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 
@@ -527,8 +519,8 @@ class DrawCommand extends VanillaCommand{
 
 	private function __fncDrawDiamond($arrParams, $objIssuer)
 	{
-		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['size'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['size'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
@@ -594,8 +586,8 @@ class DrawCommand extends VanillaCommand{
 
 	private function __fncDrawSphere($arrParams, $objIssuer, $hollow = false)
 	{
-		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults->get($objIssuer->getName())['radius'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 		$aroundMe = (isset($arrParams['aroundme']) && $arrParams['aroundme'] == 't') ? true : false;
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
@@ -655,9 +647,9 @@ class DrawCommand extends VanillaCommand{
 
 	private function __fncDrawVolcano($arrParams, $objIssuer)
 	{
-		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
-		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults->get($objIssuer->getName())['radius'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['height'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$intHeight = $intHeight / 2;
@@ -715,17 +707,16 @@ class DrawCommand extends VanillaCommand{
 
 		foreach($arrParams AS $currentKey=>$currentValue)
 		{
-			if(isset($this->arrDefaults[$objIssuer->getName()][$currentKey]))
+			if(isset($this->arrDefaults->get($objIssuer->getName())[$currentKey]))
 			{
-				$this->arrDefaults[$objIssuer->getName()][$currentKey] = $currentValue;
+				$this->arrDefaults->get($objIssuer->getName())[$currentKey] = $currentValue;
 				$blnNeedSaved = 1;
 			}
 		}
 
 		if($blnNeedSaved)
 		{
-		    // TODO: Commenting out $this->api stuff
-			//$this->api->plugin->writeYAML($this->api->plugin->configPath($this)."config.yml", $this->arrDefaults);
+			$this->arrDefaults->save();
 			return $this->arrReturnMessage['set_defaults'];
 		}
 		else
@@ -738,10 +729,10 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawPrism($arrParams, $objIssuer)
 	{
 		//incoming parameters
-		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['height'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = (isset($arrParams['objItem'])) ? $arrParams['objItem'] : $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
@@ -761,8 +752,8 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawCube($arrParams, $objIssuer)
 	{
 		//first get the coordinates of where the user is standing
-		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
@@ -782,8 +773,8 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawPyramid($arrParams, $objIssuer)
 	{
 		//first get the coordinates of where the user is standing
-		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$current_x = $this->objStartingVector->x;
@@ -824,9 +815,9 @@ class DrawCommand extends VanillaCommand{
 		$current_y = $this->objStartingVector->y;
 		$current_z = $this->objStartingVector->z;
 
-		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
-		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['width'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
 		$block_pos = new Vector3($current_x, $current_y + $intElevation, $current_z);
@@ -838,8 +829,8 @@ class DrawCommand extends VanillaCommand{
 	//This can probably get cleaned up, one of the earlier functions
 	private function __fncDrawBox($arrParams, $objIssuer)
 	{
-		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults[$objIssuer->getName()]['size'];
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['size'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 		//first get the coordinates of where the user is standing
@@ -902,7 +893,7 @@ class DrawCommand extends VanillaCommand{
 	{
 
 		$objItem = $objIssuer->getInventory()->getItemInHand();
-		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objBackgroundItem = Item::get(Item::AIR);
         $objBackgroundBlock = Block::get($objBackgroundItem->getId(), $objBackgroundItem->getDamage());
 
@@ -1008,7 +999,7 @@ class DrawCommand extends VanillaCommand{
 
 	private function __fncPlay($arrParams,$objIssuer)
 	{
-		$objCurrentSaved = json_decode($this->arrSavedMacros[$arrParams[0]],true);
+		$objCurrentSaved = json_decode($this->arrSavedMacros->get($arrParams[0]),true);
 
 		$this->blnPlaying = 1;
 		for($step=0;$step < count($objCurrentSaved);$step++)
@@ -1089,9 +1080,9 @@ class DrawCommand extends VanillaCommand{
 		//$objStartingPos is the vector to begin drawing, defaults to the user's position.
 		$objStartingPos = (isset($criteria['objStartingPos'])) ? $criteria['objStartingPos'] : new Vector3($objIssuer->getLocation()->x, $objIssuer->getLocation()->y, $objIssuer->getLocation()->z);
 		//$intLength is the Length
-		$intLength = (isset($criteria['intLength'])) ? (int) $criteria['intLength'] : $this->arrDefaults[$objIssuer->getName()]['length'];
+		$intLength = (isset($criteria['intLength'])) ? (int) $criteria['intLength'] : $this->arrDefaults->get($objIssuer->getName())['length'];
 		//$intWidth is the width
-		$intWidth = (isset($criteria['intWidth'])) ? (int) $criteria['intWidth'] : $this->arrDefaults[$objIssuer->getName()]['width'];
+		$intWidth = (isset($criteria['intWidth'])) ? (int) $criteria['intWidth'] : $this->arrDefaults->get($objIssuer->getName())['width'];
 		//$objItem is the type of block to use.
 		$objItem = (isset($criteria['objItem'])) ? $criteria['objItem'] : $objItem = $objIssuer->getInventory()->getItemInHand();
 
@@ -1194,21 +1185,22 @@ class DrawCommand extends VanillaCommand{
 	private function __fncSetupUserDefaults($objIssuer)
 	{
 
-		if (isset($this->arrDefaults[$objIssuer->getName()])) return;
+		if ($this->arrDefaults->exists($objIssuer->getName())) return;
+        
+        //set up the defaults for the new user
+        $arrDefaults = array();
+        $arrDefaults['block'] = 3;
+		$arrDefaults['block_sub'] = 0;
+		$arrDefaults['length'] = 5;
+		$arrDefaults['width'] = 5;
+		$arrDefaults['height'] = 5;
+		$arrDefaults['depth'] = 4;
+		$arrDefaults['size'] = 5;
+		$arrDefaults['elevation'] = 0;
+		$arrDefaults['radius'] = 5;
+        $this->arrDefaults->set($objIssuer->getName(), $arrDefaults);
 
-		//set up the defaults for the new user
-		$this->arrDefaults[$objIssuer->getName()]['block'] = 3;
-		$this->arrDefaults[$objIssuer->getName()]['block_sub'] = 0;
-		$this->arrDefaults[$objIssuer->getName()]['length'] = 5;
-		$this->arrDefaults[$objIssuer->getName()]['width'] = 5;
-		$this->arrDefaults[$objIssuer->getName()]['height'] = 5;
-		$this->arrDefaults[$objIssuer->getName()]['depth'] = 4;
-		$this->arrDefaults[$objIssuer->getName()]['size'] = 5;
-		$this->arrDefaults[$objIssuer->getName()]['elevation'] = 0;
-		$this->arrDefaults[$objIssuer->getName()]['radius'] = 5;
-
-        // TODO: Commenting out $this->api stuff
-		//$this->api->plugin->writeYAML($this->api->plugin->configPath($this)."config.yml", $this->arrDefaults);
+        $this->arrDefaults->save();
 	}
 
 	private function __fncHelp($strAlias, $strSubCommand = '')
