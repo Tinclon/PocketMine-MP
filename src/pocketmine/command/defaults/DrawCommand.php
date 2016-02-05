@@ -60,12 +60,14 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['undo'] = 'Last command has been undone.';
 		$this->arrReturnMessage['floor'] = 'Nice looking floor you got there!';
 		$this->arrReturnMessage['pool'] = 'Time to cool off!';
+		$this->arrReturnMessage['lavalake'] = 'Warm and invitine!';
 		$this->arrReturnMessage['cut'] = 'Blocks have been removed.';
 		$this->arrReturnMessage['replace'] = 'Blocks have been replaced.';
 		$this->arrReturnMessage['steps'] = 'Stairway to heaven.';
 		$this->arrReturnMessage['diamond'] = 'Diamonds are a girl\'s best friend.';
 		$this->arrReturnMessage['sphere'] = 'The circle of life.';
 		$this->arrReturnMessage['bubble'] = 'In a bubble of happiness.';
+		$this->arrReturnMessage['volcano'] = 'Deep within the earth fire.';
 		$this->arrReturnMessage['set_defaults'] = 'Defaults have been updated.';
 		$this->arrReturnMessage['error_defaults'] = 'No defaults to update.';
 		$this->arrReturnMessage['prism'] = 'Run for your life, it\'s a Cuboid!.';
@@ -314,6 +316,11 @@ class DrawCommand extends VanillaCommand{
                 $strOutput = $this->__fncDrawPool($arrNamedParams, $objIssuer);
             break;
 
+            case 'lavalake':
+                $strOutput = $this->__fncDrawLavaLake($arrNamedParams, $objIssuer);
+            break;
+
+
             case 'pyramid':
                 $strOutput = $this->__fncDrawPyramid($arrNamedParams, $objIssuer);
             break;
@@ -348,6 +355,10 @@ class DrawCommand extends VanillaCommand{
 
             case 'bubble':
                 $strOutput = $this->__fncDrawBubble($arrNamedParams, $objIssuer);
+            break;
+
+            case 'volcano':
+                $strOutput = $this->__fncDrawVolcano($arrNamedParams, $objIssuer);
             break;
 
             case 'diamond':
@@ -431,6 +442,29 @@ class DrawCommand extends VanillaCommand{
 
 
 		return $this->arrReturnMessage['pool'];
+	}
+
+	private function __fncDrawLavaLake($arrParams, $objIssuer)
+	{
+		//first get the coordinates of where the user is standing
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults[$objIssuer->getName()]['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults[$objIssuer->getName()]['width'];
+		$intDepth = (isset($arrParams['depth']) && is_numeric ($arrParams['depth'])) ? (int) $arrParams['depth'] : $this->arrDefaults[$objIssuer->getName()]['depth'];
+
+		$objItem = Item::get(Item::STILL_LAVA);
+
+		$current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y;
+		$current_z = $this->objStartingVector->z;
+
+		for($i=1;$i<=$intDepth;$i++)
+		{
+			$block_pos = new Vector3($current_x, $current_y - $i, $current_z);
+			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
+		}
+
+
+		return $this->arrReturnMessage['lavalake'];
 	}
 
 	private function __fncCut($arrParams, $objIssuer)
@@ -617,6 +651,57 @@ class DrawCommand extends VanillaCommand{
 		}
 
 		return $this->arrReturnMessage['sphere'];
+	}
+
+	private function __fncDrawVolcano($arrParams, $objIssuer)
+	{
+		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
+
+        $current_x = $this->objStartingVector->x;
+        $current_y = $this->objStartingVector->y + $intElevation + $intRadius;
+        $current_z = $this->objStartingVector->z;
+
+        if($objItem instanceof ItemBlock) {
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        } else {
+            $objItem = Item::get(Item::AIR);
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        }
+
+        for($y = $intRadius; $y >= -$intRadius; $y--){
+            $multiplier = -pow(((($intRadius * 2 - ($y + $intRadius)) / ($intRadius / 5)) / 6),4) + 10;
+            if ($y + $intRadius == 0) {
+                $circleSize = $multiplier * $intRadius;
+            } else {
+                $circleSize = ($multiplier * $intRadius) / ($y + $intRadius);
+            }
+		    for($x = $intRadius; $x >= -$intRadius; $x--){
+				for($z = $intRadius; $z >= -$intRadius; $z--){
+					$intDist = sqrt(($x*$x + $z*$z)); //Calculates the distance
+
+                    if ($intDist > $circleSize) continue;
+                    if ($intDist < $circleSize - 1.414213562373095 - (($intRadius * 2 - ($y + $intRadius)) * (1 / ( $intRadius / 3)))) {
+                        $objInnerItem = Item::get(Item::AIR);
+                        $objInnerBlock = Block::get($objInnerItem->getId(), $objInnerItem->getDamage());
+
+                        $block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
+                        $this->__fncSetRollback($objIssuer,$block_pos);
+
+                        $objIssuer->getLevel()->setBlock($block_pos, $objInnerBlock);
+                        continue;
+                    }
+
+					$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
+					$this->__fncSetRollback($objIssuer,$block_pos);
+
+					$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
+				}
+			}
+		}
+
+		return $this->arrReturnMessage['volcano'];
 	}
 
 	private function __fncSetDefaults($arrParams, $objIssuer)
@@ -1148,6 +1233,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "It will create a pool of water in front of you.\n";
 			break;
 
+			case 'lavalake':
+				$strOutput .= "Usage: /$strAlias lavalake w:10 h:10 d:3\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(w)idth, (h)eight, and (d)epth\n";
+				$strOutput .= "It will create a pool of lava in front of you.\n";
+			break;
+
 			case 'floor':
 				$strOutput .= "Usage: /$strAlias floor l:12 w:12 e:-1\n";
 				$strOutput .= "Optional params:\n";
@@ -1205,6 +1297,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(r)adius, and (e)elevation\n";
 				$strOutput .= "This will draw a hollow bubble around you.\n";
+			break;
+
+			case 'volcano':
+				$strOutput .= "Usage: /$strAlias volcano r:15\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(r)adius, and (e)elevation\n";
+				$strOutput .= "This will draw a hollow volcano around you.\n";
 			break;
 
 			case 'steps':
