@@ -656,11 +656,14 @@ class DrawCommand extends VanillaCommand{
 	private function __fncDrawVolcano($arrParams, $objIssuer)
 	{
 		$intRadius = (isset($arrParams['radius']) && is_numeric ($arrParams['radius'])) ? (int) $arrParams['radius'] : $this->arrDefaults[$objIssuer->getName()]['radius'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults[$objIssuer->getName()]['height'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults[$objIssuer->getName()]['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
+		$intHeight = $intHeight / 2;
+
         $current_x = $this->objStartingVector->x;
-        $current_y = $this->objStartingVector->y + $intElevation + $intRadius;
+        $current_y = $this->objStartingVector->y + $intElevation + $intHeight;
         $current_z = $this->objStartingVector->z;
 
         if($objItem instanceof ItemBlock) {
@@ -670,19 +673,21 @@ class DrawCommand extends VanillaCommand{
             $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
         }
 
-        for($y = $intRadius; $y >= -$intRadius; $y--){
-            $multiplier = -pow(((($intRadius * 2 - ($y + $intRadius)) / ($intRadius / 5)) / 6),4) + 10;
-            if ($y + $intRadius == 0) {
+        $circleSize = $intRadius;
+        for($y = $intHeight; $y >= -$intHeight; $y--){
+            $prevCircleSize = $circleSize;
+            $multiplier = -pow(((($intHeight * 2 - ($y + $intHeight)) / ($intHeight / 5)) / 6.75), 6) + 10;
+            if ($y + $intHeight == 0) {
                 $circleSize = $multiplier * $intRadius;
             } else {
-                $circleSize = ($multiplier * $intRadius) / ($y + $intRadius);
+                $circleSize = ($multiplier * $intRadius) / ($y + $intHeight);
             }
 		    for($x = $intRadius; $x >= -$intRadius; $x--){
 				for($z = $intRadius; $z >= -$intRadius; $z--){
 					$intDist = sqrt(($x*$x + $z*$z)); //Calculates the distance
 
                     if ($intDist > $circleSize) continue;
-                    if ($intDist < $circleSize - 1.414213562373095 - (($intRadius * 2 - ($y + $intRadius)) * (1 / ( $intRadius / 3)))) {
+                    if ($intDist < $prevCircleSize - 1.414213562373095) {
                         $objInnerItem = Item::get(Item::AIR);
                         $objInnerBlock = Block::get($objInnerItem->getId(), $objInnerItem->getDamage());
 
@@ -1314,7 +1319,7 @@ class DrawCommand extends VanillaCommand{
 			break;
 
 			case 'write':
-				$strOutput .= "Usage: /$strAlias write:test message\n";
+				$strOutput .= "Usage: /$strAlias write t:test message\n";
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(t)ext, and (e)elevation\n";
 				$strOutput .= "This will write a block message for you.\n";
