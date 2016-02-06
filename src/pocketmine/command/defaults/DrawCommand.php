@@ -486,12 +486,13 @@ class DrawCommand extends VanillaCommand{
 		$current_z = $this->objStartingVector->z;
 
 	    $arrClip = json_decode($clipConfig->get($arrParams['name']), true);
+	    //   TODO CNielsen: Tell the user if $arrParams['name'] doesn't match a name in the file. Give them a list of options (see play command)
 		foreach($arrClip as $arrCurrentClip)
 		{
 		    list($x, $y, $z, $t, $d) = explode("|", $arrCurrentClip);
 		    if($copyStartingDirection == $this->objStartingDirection) {
 		        // Do nothing. Original and new directions already match
-		    } else if ($copyStartingDirection + 2 % 4 == $this->objStartingDirection) {
+		    } else if (($copyStartingDirection + 2) % 4 == $this->objStartingDirection) {
 		        // Opposite direction, change signs
 		        $x = -$x;
 		        $z = -$z;
@@ -500,6 +501,12 @@ class DrawCommand extends VanillaCommand{
 		        $c = $x;
 		        $x = $z;
 		        $z = $c;
+
+                if ($copyStartingDirection == self::DIR_EAST || $copyStartingDirection == self::DIR_WEST) {
+                    // Started from east/west, change signs
+		            $x = -$x;
+		            $z = -$z;
+                }
 
 		        //flip z on:
 		        //    WEST -> NORTH, NORTH -> WEST
