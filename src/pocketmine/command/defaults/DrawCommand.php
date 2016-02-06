@@ -280,6 +280,7 @@ class DrawCommand extends VanillaCommand{
         $arrShortCuts['r'] = 'radius';
         $arrShortCuts['a'] = 'aroundme';
         $arrShortCuts['n'] = 'name';
+        $arrShortCuts['ex'] = 'exclude';
 
         //set the arrParams to named parameters
         $arrNamedParams = array();
@@ -402,6 +403,7 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
 		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['height'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
+		$exclude = (isset($arrParams['exclude'])) ? strtoupper($arrParams['exclude']) : '';
 
 		$current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation + $intHeight;
@@ -435,13 +437,15 @@ class DrawCommand extends VanillaCommand{
 					$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
                     $objBlock = $objIssuer->getLevel()->getBlock($block_pos);
 
+                    if(strpos($exclude,str_replace(' ','',strtoupper($objBlock->getName()))) !== FALSE) continue;
+
 					$arrClip[] = $x.'|'.$y.'|'.$z.'|'.$objBlock->getId().'|'.$objBlock->getDamage();
 				}
 			}
 		}
 
         $clipConfig = new Config($this->server->getDataPath() . "draw.clips.yml", Config::YAML, array());
-        $clipConfig->set($arrParams['name'].'d', $intLength.'|'.$intWidth.'|'.$intHeight);
+        $clipConfig->set($arrParams['name'].'.d', $intLength.'|'.$intWidth.'|'.$intHeight);
         $clipConfig->set($arrParams['name'], json_encode($arrClip));
         $clipConfig->save();
 
@@ -451,7 +455,7 @@ class DrawCommand extends VanillaCommand{
     private function __fncPaste($arrParams, $objIssuer)
 	{
 	    $clipConfig = new Config($this->server->getDataPath() . "draw.clips.yml", Config::YAML, array());
-	    list($intLength, $intWidth, $intHeight) = explode("|", $clipConfig->get($arrParams['name'].'d'));
+	    list($intLength, $intWidth, $intHeight) = explode("|", $clipConfig->get($arrParams['name'].'.d'));
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 
 		$current_x = $this->objStartingVector->x;
@@ -485,6 +489,7 @@ class DrawCommand extends VanillaCommand{
 			$objBlock = Block::get($t, $d);
 			$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
 
+            $this->__fncSetRollback($objIssuer,$block_pos);
 			$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
 		}
 
@@ -1328,9 +1333,9 @@ class DrawCommand extends VanillaCommand{
 		switch($strSubCommand)
 		{
 			case 'copy':
-				$strOutput .= "Usage: /$strAlias copy l:5 w:5 h:5 n:house_copy\n";
+				$strOutput .= "Usage: /$strAlias copy l:5 w:5 h:5 ex:air,water n:house_copy\n";
 				$strOutput .= "Optional params:\n";
-				$strOutput .= "(n)ame, (l)ength, (w)idth, (h)eight, and (e)elevation\n";
+				$strOutput .= "(n)ame, (l)ength, (w)idth, (h)eight, (ex)clude, and (e)elevation\n";
 				$strOutput .= "Copy an area of blocks and save to a named clip\n";
 			break;
 
