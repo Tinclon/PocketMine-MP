@@ -413,33 +413,46 @@ class DrawCommand extends VanillaCommand{
         // Everything seems to start from the block in front of you while looking north.
         //  So we need to start by subtracting one from x for every direction
         $current_x = $this->objStartingVector->x - 1;
-		$current_y = $this->objStartingVector->y + $intElevation + $intHeight;
+		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
+
+        $xMult = 1;
+        $zMult = 1;
+        $xDim = $intLength;
+        $zDim = $intWidth;
 
         switch($this->objStartingDirection)
         {
             case self::DIR_NORTH:
-                $current_x = $current_x + $intLength;
-                $current_z = $current_z + $intWidth;
+                $xMult = 1;
+                $zMult = 1;
+                $xDim = $intLength;
+                $zDim = $intWidth;
             break;
             case self::DIR_EAST:
-                $current_x = $current_x - $intWidth;
-                $current_z = $current_z + $intLength;
+                $xMult = -1;
+                $zMult = 1;
+                $xDim = $intWidth;
+                $zDim = $intLength;
             break;
             case self::DIR_SOUTH:
-                $current_x = $current_x - $intLength;
-                $current_z = $current_z - $intWidth;
+                $xMult = -1;
+                $zMult = -1;
+                $xDim = $intLength;
+                $zDim = $intWidth;
             break;
             case self::DIR_WEST:
-                $current_x = $current_x + $intWidth;
-                $current_z = $current_z - $intLength;
+                $xMult = 1;
+                $zMult = -1;
+                $xDim = $intWidth;
+                $zDim = $intLength;
             break;
         }
 
         $arrClip = array();
-	    for($y = -$intHeight; $y <= $intHeight; $y++){
-    		for($x = $intWidth; $x >= -$intWidth; $x--){
-				for($z = $intLength; $z >= -$intLength; $z--){
+	    for($y = 0; $y <= $intHeight; $y++){
+    		for($x = $xDim * $xMult; $x != 0; $x-=$xMult){
+				for($z = $zDim * $zMult; $z != 0; $z-=$zMult){
 
 					$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z + $z);
                     $objBlock = $objIssuer->getLevel()->getBlock($block_pos);
@@ -451,8 +464,9 @@ class DrawCommand extends VanillaCommand{
 			}
 		}
 
+        $this->server->getLogger()->info($objIssuer->getName() . ': ' . $arrParams['name'] . ' copy complete. Saving to disk...');
         $clipConfig = new Config($this->server->getDataPath() . '../' . 'draw.clips.yml', Config::YAML, array());
-        $clipConfig->set($arrParams['name'].'.d', $intLength.'|'.$intWidth.'|'.$intHeight);
+        $clipConfig->set($arrParams['name'].'.d', $this->objStartingDirection);
         $clipConfig->set($arrParams['name'], json_encode($arrClip));
         $clipConfig->save();
 
@@ -462,39 +476,51 @@ class DrawCommand extends VanillaCommand{
     private function __fncPaste($arrParams, $objIssuer)
 	{
 	    $clipConfig = new Config($this->server->getDataPath() . '../' . 'draw.clips.yml', Config::YAML, array());
-	    list($intLength, $intWidth, $intHeight) = explode("|", $clipConfig->get($arrParams['name'].'.d'));
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
+	    $copyStartingDirection = $clipConfig->get($arrParams['name'].'.d');
 
         // Everything seems to start from the block in front of you while looking north.
         //  So we need to start by subtracting one from x for every direction
         $current_x = $this->objStartingVector->x - 1;
-		$current_y = $this->objStartingVector->y + $intElevation + $intHeight;
+		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
-
-        switch($this->objStartingDirection)
-        {
-            case self::DIR_NORTH:
-                $current_x = $current_x + $intLength;
-                $current_z = $current_z + $intWidth;
-            break;
-            case self::DIR_EAST:
-                $current_x = $current_x - $intWidth;
-                $current_z = $current_z + $intLength;
-            break;
-            case self::DIR_SOUTH:
-                $current_x = $current_x - $intLength;
-                $current_z = $current_z - $intWidth;
-            break;
-            case self::DIR_WEST:
-                $current_x = $current_x + $intWidth;
-                $current_z = $current_z - $intLength;
-            break;
-        }
 
 	    $arrClip = json_decode($clipConfig->get($arrParams['name']), true);
 		foreach($arrClip as $arrCurrentClip)
 		{
 		    list($x, $y, $z, $t, $d) = explode("|", $arrCurrentClip);
+		    if($copyStartingDirection == $this->objStartingDirection) {
+		        // Do nothing. Original and new directions already match
+		    } else if ($copyStartingDirection + 2 % 4 == $this->objStartingDirection) {
+		        // Opposite direction, change signs
+		        $x = -$x;
+		        $z = -$z;
+		    } else {
+		        // Switch x and z
+		        $c = $x;
+		        $x = $z;
+		        $z = $c;
+
+		        //flip z on:
+		        //    WEST -> NORTH, NORTH -> WEST
+		        //    SOUTH -> EAST, EAST -> SOUTH
+		        if (($copyStartingDirection == self::DIR_NORTH && $this->objStartingDirection == self::DIR_WEST)
+		            || ($copyStartingDirection == self::DIR_WEST && $this->objStartingDirection == self::DIR_NORTH)
+		            || ($copyStartingDirection == self::DIR_SOUTH && $this->objStartingDirection == self::DIR_EAST)
+		            || ($copyStartingDirection == self::DIR_EAST && $this->objStartingDirection == self::DIR_SOUTH) ) {
+		            $z = -$z;
+		        }
+		        //flip x on:
+		        //    NORTH -> EAST, EAST -> NORTH
+		        //    SOUTH -> WEST, WEST -> SOUTH
+		        if (($copyStartingDirection == self::DIR_NORTH && $this->objStartingDirection == self::DIR_EAST)
+		            || ($copyStartingDirection == self::DIR_EAST && $this->objStartingDirection == self::DIR_NORTH)
+		            || ($copyStartingDirection == self::DIR_SOUTH && $this->objStartingDirection == self::DIR_WEST)
+		            || ($copyStartingDirection == self::DIR_WEST && $this->objStartingDirection == self::DIR_SOUTH) ) {
+		            $x = -$x;
+		        }
+		    }
+
 			$objBlock = Block::get($t, $d);
 			$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z + $z);
 
@@ -914,7 +940,6 @@ class DrawCommand extends VanillaCommand{
 			$block_pos = new Vector3($current_x, $current_y + $i, $current_z);
 			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 		}
-
 
 		return $this->arrReturnMessage['cube'];
 	}
@@ -1371,7 +1396,7 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Usage: /$strAlias copy l:5 w:5 h:5 ex:grass,water in:air n:house_copy\n";
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(n)ame, (l)ength, (w)idth, (h)eight, (ex)clude, (in)clude, and (e)elevation\n";
-				$strOutput .= "Copy an area of blocks and save to a named clip\n";
+				$strOutput .= "Copy an area of blocks and save to a named clip - by default it excludes air blocks\n";
 			break;
 
 			case 'paste':
