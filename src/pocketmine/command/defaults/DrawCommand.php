@@ -30,6 +30,13 @@ use pocketmine\math\Vector3;
 use pocketmine\utils\Config;
 
 class DrawCommand extends VanillaCommand{
+
+    const DIR_NORTH = '0';      // I believe, that when we're facing north, positive x value recedes into the distance, positive z value goes to the right
+    const DIR_EAST = '1';       // I believe, that when we're facing east,  positive z value recedes into the distance, positive x value goes to the left
+    const DIR_SOUTH = '2';      // I believe, that when we're facing south, negative x value recedes into the distance, negative z value goes to the right
+    const DIR_WEST = '3';       // I believe, that when we're facing west,  negative z value recedes into the distance, positive x value goes to the right
+
+
 	public function __construct($name, $server){
 		parent::__construct(
 			$name,
@@ -79,6 +86,8 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['box'] = 'Have a box!';
 		$this->arrReturnMessage['string'] = 'Here is a message for you.';
 		$this->arrReturnMessage['play'] = 'Playa';
+		$this->arrReturnMessage['copy'] = 'Template saved to clone factory';
+		$this->arrReturnMessage['paste'] = 'Package arrived from cloning factory';
 
 		$this->init();
 	}
@@ -87,6 +96,10 @@ class DrawCommand extends VanillaCommand{
 
         if(!$this->testPermission($sender)){
             return true;
+        }
+
+        if(!isset($args[0])) {
+            $args[0] = 'help';
         }
 
         $sender->sendMessage($this->commandHandler($args[0], $args, $sender, $currentAlias));
@@ -266,6 +279,7 @@ class DrawCommand extends VanillaCommand{
         $arrShortCuts['e'] = 'elevation';
         $arrShortCuts['r'] = 'radius';
         $arrShortCuts['a'] = 'aroundme';
+        $arrShortCuts['n'] = 'name';
 
         //set the arrParams to named parameters
         $arrNamedParams = array();
@@ -292,6 +306,14 @@ class DrawCommand extends VanillaCommand{
 
         switch($strSubCmd)
         {
+            case 'copy':
+                $strOutput = $this->__fncCopy($arrNamedParams, $objIssuer);
+            break;
+
+            case 'paste':
+                $strOutput = $this->__fncPaste($arrNamedParams, $objIssuer);
+            break;
+
             case 'cube':
                 $strOutput = $this->__fncDrawCube($arrNamedParams, $objIssuer);
             break;
@@ -311,7 +333,6 @@ class DrawCommand extends VanillaCommand{
             case 'lavalake':
                 $strOutput = $this->__fncDrawLavaLake($arrNamedParams, $objIssuer);
             break;
-
 
             case 'pyramid':
                 $strOutput = $this->__fncDrawPyramid($arrNamedParams, $objIssuer);
@@ -360,6 +381,7 @@ class DrawCommand extends VanillaCommand{
             case 'set':
                 $strOutput = $this->__fncSetDefaults($arrNamedParams, $objIssuer);
             break;
+
             case 'undo':
                 $strOutput = $this->__fncUndo($arrNamedParams, $objIssuer);
             break;
@@ -372,6 +394,101 @@ class DrawCommand extends VanillaCommand{
 		}
 
 		return $strOutput;
+	}
+
+    private function __fncCopy($arrParams, $objIssuer)
+	{
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+		$intHeight = (isset($arrParams['height']) && is_numeric ($arrParams['height'])) ? (int) $arrParams['height'] : $this->arrDefaults->get($objIssuer->getName())['height'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
+
+		$current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y + $intElevation + $intHeight;
+		$current_z = $this->objStartingVector->z;
+
+        switch($this->objStartingDirection)
+        {
+            case self::DIR_NORTH:
+                $current_x = $this->objStartingVector->x + $intLength;
+                $current_z = $this->objStartingVector->z + $intWidth;
+            break;
+            case self::DIR_EAST:
+                $current_x = $this->objStartingVector->x - $intWidth;
+                $current_z = $this->objStartingVector->z + $intLength;
+            break;
+            case self::DIR_SOUTH:
+                $current_x = $this->objStartingVector->x - $intLength;
+                $current_z = $this->objStartingVector->z - $intWidth;
+            break;
+            case self::DIR_WEST:
+                $current_x = $this->objStartingVector->x + $intWidth;
+                $current_z = $this->objStartingVector->z - $intLength;
+            break;
+        }
+
+        $arrClip = array();
+	    for($y = -$intHeight; $y <= $intHeight; $y++){
+    		for($x = $intWidth; $x >= -$intWidth; $x--){
+				for($z = $intLength; $z >= -$intLength; $z--){
+
+					$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
+                    $objBlock = $objIssuer->getLevel()->getBlock($block_pos);
+
+					$arrClip[] = $x.'|'.$y.'|'.$z.'|'.$objBlock->getId().'|'.$objBlock->getDamage();
+				}
+			}
+		}
+
+        $clipConfig = new Config($this->server->getDataPath() . "draw.clips.yml", Config::YAML, array());
+        $clipConfig->set($arrParams['name'].'d', $intLength.'|'.$intWidth.'|'.$intHeight);
+        $clipConfig->set($arrParams['name'], json_encode($arrClip));
+        $clipConfig->save();
+
+		return $this->arrReturnMessage['copy'];
+	}
+
+    private function __fncPaste($arrParams, $objIssuer)
+	{
+	    $clipConfig = new Config($this->server->getDataPath() . "draw.clips.yml", Config::YAML, array());
+	    list($intLength, $intWidth, $intHeight) = explode("|", $clipConfig->get($arrParams['name'].'d'));
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
+
+		$current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y + $intElevation + $intHeight;
+		$current_z = $this->objStartingVector->z;
+
+        switch($this->objStartingDirection)
+        {
+            case self::DIR_NORTH:
+                $current_x = $this->objStartingVector->x + $intLength;
+                $current_z = $this->objStartingVector->z + $intWidth;
+            break;
+            case self::DIR_EAST:
+                $current_x = $this->objStartingVector->x - $intWidth;
+                $current_z = $this->objStartingVector->z + $intLength;
+            break;
+            case self::DIR_SOUTH:
+                $current_x = $this->objStartingVector->x - $intLength;
+                $current_z = $this->objStartingVector->z - $intWidth;
+            break;
+            case self::DIR_WEST:
+                $current_x = $this->objStartingVector->x + $intWidth;
+                $current_z = $this->objStartingVector->z - $intLength;
+            break;
+        }
+
+	    $arrClip = json_decode($clipConfig->get($arrParams['name']), true);
+		foreach($arrClip as $arrCurrentClip)
+		{
+		    list($x, $y, $z, $t, $d) = explode("|", $arrCurrentClip);
+			$objBlock = Block::get($t, $d);
+			$block_pos = new Vector3($current_x + $x, $current_y + $y, $current_z - $z);
+
+			$objIssuer->getLevel()->setBlock($block_pos, $objBlock);
+		}
+
+		return $this->arrReturnMessage['paste'];
 	}
 
 	private function __fncUndo($arrParams, $objIssuer)
@@ -496,16 +613,16 @@ class DrawCommand extends VanillaCommand{
 		{
 			switch($this->objStartingDirection)
 			{
-				case '0':
+				case self::DIR_NORTH:
 					$block_pos = new Vector3($current_x + $i, $current_y + $i, $current_z);
 				break;
-				case '1':
+				case self::DIR_EAST:
 					$block_pos = new Vector3($current_x, $current_y + $i, $current_z + $i);
 				break;
-				case '2':
+				case self::DIR_SOUTH:
 					$block_pos = new Vector3($current_x - $i, $current_y + $i, $current_z);
 				break;
-				case '3':
+				case self::DIR_WEST:
 					$block_pos = new Vector3($current_x, $current_y + $i, $current_z - $i);
 				break;
 			}
@@ -544,16 +661,16 @@ class DrawCommand extends VanillaCommand{
 		{
 			switch($this->objStartingDirection)
 			{
-				case '0':
+				case self::DIR_NORTH:
 					$block_pos = new Vector3($current_x + $intPositionAdjustment, $current_y + $i, $current_z + $intPositionAdjustment);
 				break;
-				case '1':
+				case self::DIR_EAST:
 					$block_pos = new Vector3($current_x - $intPositionAdjustment, $current_y + $i, $current_z + $intPositionAdjustment);
 				break;
-				case '2':
+				case self::DIR_SOUTH:
 					$block_pos = new Vector3($current_x - $intPositionAdjustment, $current_y + $i, $current_z - $intPositionAdjustment);
 				break;
-				case '3':
+				case self::DIR_SOUTH:
 					$block_pos = new Vector3($current_x + $intPositionAdjustment, $current_y + $i, $current_z - $intPositionAdjustment);
 				break;
 			}
@@ -599,19 +716,19 @@ class DrawCommand extends VanillaCommand{
             $current_y = $this->objStartingVector->y + $intRadius + $intElevation;
             switch($this->objStartingDirection)
             {
-                case '0':
+                case self::DIR_NORTH:
                     $current_x = $this->objStartingVector->x + $intRadius;
                     $current_z = $this->objStartingVector->z + $intRadius;
                 break;
-                case '1':
+                case self::DIR_EAST:
                     $current_x = $this->objStartingVector->x - $intRadius;
                     $current_z = $this->objStartingVector->z + $intRadius;
                 break;
-                case '2':
+                case self::DIR_SOUTH:
                     $current_x = $this->objStartingVector->x - $intRadius;
                     $current_z = $this->objStartingVector->z - $intRadius;
                 break;
-                case '3':
+                case self::DIR_WEST:
                     $current_x = $this->objStartingVector->x + $intRadius;
                     $current_z = $this->objStartingVector->z - $intRadius;
                 break;
@@ -786,16 +903,16 @@ class DrawCommand extends VanillaCommand{
 		{
 			switch($this->objStartingDirection)
 			{
-				case '0':
+				case self::DIR_NORTH:
 					$block_pos = new Vector3($current_x + $i, $current_y + $i, $current_z + $i);
 				break;
-				case '1':
+				case self::DIR_EAST:
 					$block_pos = new Vector3($current_x - $i, $current_y + $i, $current_z + $i);
 				break;
-				case '2':
+				case self::DIR_SOUTH:
 					$block_pos = new Vector3($current_x - $i, $current_y + $i, $current_z - $i);
 				break;
-				case '3':
+				case self::DIR_WEST:
 					$block_pos = new Vector3($current_x + $i, $current_y + $i, $current_z - $i);
 				break;
 			}
@@ -840,7 +957,7 @@ class DrawCommand extends VanillaCommand{
 
 		switch($this->objStartingDirection)
 		{
-			case '0':
+			case self::DIR_NORTH:
 				$objFrontWallPos = new Vector3($current_x + 1, $current_y, $current_z - 1 );
 				$objBackWallPos = new Vector3($current_x + $intSize, $current_y, $current_z);
 				$objSideWall = new Vector3($current_x + 1, $current_y, $current_z);
@@ -848,34 +965,34 @@ class DrawCommand extends VanillaCommand{
 
 				$objFloor = new Vector3($current_x, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = 1;
+				$intOppositeDirection = (int) self::DIR_EAST;  // TODO CNielsen: These seem wrong
 			break;
-			case '1':
+			case self::DIR_EAST:
 				$objFrontWallPos = new Vector3($current_x + 1, $current_y, $current_z + 1);
 				$objBackWallPos = new Vector3($current_x, $current_y, $current_z + $intSize);
 				$objSideWall = new Vector3($current_x, $current_y, $current_z + 1);
 				$objOppositeSideWallPos = new Vector3($current_x - $intSize + 1, $current_y, $current_z);
 				$objFloor = new Vector3($current_x, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = 2;
+				$intOppositeDirection = (int) self::DIR_SOUTH;  // TODO CNielsen: These seem wrong
 			break;
-			case '2':
+			case self::DIR_SOUTH:
 				$objFrontWallPos = new Vector3($current_x - 2, $current_y, $current_z );
 				$objBackWallPos = new Vector3($current_x - $intSize -1, $current_y, $current_z + 1);
 				$objSideWall = new Vector3($current_x - 1, $current_y, $current_z);
 				$objOppositeSideWallPos = new Vector3($current_x - 2, $current_y, $current_z - $intSize + 1);
 				$objFloor = new Vector3($current_x - 1, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x -1, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = 3;
+				$intOppositeDirection = (int) self::DIR_WEST;  // TODO CNielsen: These seem wrong
 			break;
-			case '3':
+			case self::DIR_WEST:
 				$objFrontWallPos = new Vector3($current_x, $current_y, $current_z - 3);
 				$objBackWallPos = new Vector3($current_x - 1, $current_y, $current_z - $intSize - 2);
 				$objSideWall = new Vector3($current_x, $current_y, $current_z - 2);
 				$objOppositeSideWallPos = new Vector3($current_x + $intSize - 1, $current_y, $current_z - 3);
 				$objFloor = new Vector3($current_x, $current_y, $current_z - 2);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z - 2);
-				$intOppositeDirection = 0;
+				$intOppositeDirection = (int) self::DIR_NORTH;  // TODO CNielsen: These seem wrong
 			break;
 		}
 
@@ -930,17 +1047,18 @@ class DrawCommand extends VanillaCommand{
 
 		switch($this->objStartingDirection)
 		{
-			case '0':
-				$intOppositeDirection = 1;
+		    // TODO CNielsen: This seems wrong
+			case self::DIR_NORTH:
+				$intOppositeDirection = (int) self::DIR_EAST;
 			break;
-			case '1':
-				$intOppositeDirection = 2;
+			case self::DIR_EAST:
+				$intOppositeDirection = (int) self::DIR_SOUTH;
 			break;
-			case '2':
-				$intOppositeDirection = 3;
+			case self::DIR_SOUTH:
+				$intOppositeDirection = (int) self::DIR_WEST;
 			break;
-			case '3':
-				$intOppositeDirection = 0;
+			case self::DIR_WEST:
+				$intOppositeDirection = (int) self::DIR_NORTH;
 			break;
 		}
 
@@ -979,16 +1097,16 @@ class DrawCommand extends VanillaCommand{
 
 		switch($intCurrentDirection)
 		{
-			case '0':
+			case self::DIR_NORTH:
 					$current_z = $current_z + $intCount;
 			break;
-			case '1':
+			case self::DIR_EAST:
 				$current_x = $current_x-+ $intCount;
 			break;
-			case '2':
+			case self::DIR_SOUTH:
 				$current_z = $current_z - $intCount;
 			break;
-			case '3':
+			case self::DIR_WEST:
 				$current_x = $current_x + $intCount;
 			break;
 		}
@@ -1108,7 +1226,7 @@ class DrawCommand extends VanillaCommand{
 		switch($strStaticPlain)
 		{
 			case 'horizontal':
-				if ($intCurrentDirection == 0 || $intCurrentDirection == 2)
+				if ($intCurrentDirection == (int) self::DIR_NORTH || $intCurrentDirection == (int) self::DIR_SOUTH)
 				{
 					$intFirstLevel = $intCurrent_x;
 					$intSecondLevel = $intCurrent_z;
@@ -1126,7 +1244,7 @@ class DrawCommand extends VanillaCommand{
 				}
 			break;
 			case 'vertical':
-				if ($intCurrentDirection == 1 || $intCurrentDirection == 3)
+				if ($intCurrentDirection == (int) self::DIR_EAST || $intCurrentDirection == (int) self::DIR_WEST)
 				{
 					$intFirstLevel = $intCurrent_z;
 					$intSecondLevel = $intCurrent_y;
@@ -1147,7 +1265,7 @@ class DrawCommand extends VanillaCommand{
 
 		for($i = 1; $i <= $intLength; $i++)
 		{
-			if ($intCurrentDirection == 0 || $intCurrentDirection == 1)
+			if ($intCurrentDirection == (int)self::DIR_NORTH || $intCurrentDirection == (int)self::DIR_EAST)
 			{
 				$intNewFirstLevel =  $intFirstLevel + $i;
 			}
@@ -1158,7 +1276,7 @@ class DrawCommand extends VanillaCommand{
 
 			for($j = 0; $j < $intWidth; $j++)
 			{
-				if ($strStaticPlain == 'vertical' || $intCurrentDirection == 3 || $intCurrentDirection == 0)
+				if ($strStaticPlain == 'vertical' || $intCurrentDirection == (int)self::DIR_WEST || $intCurrentDirection == (int)self::DIR_NORTH)
 				{
 					$intNewSecondLevel = $intSecondLevel + $j;
 				}
@@ -1209,6 +1327,20 @@ class DrawCommand extends VanillaCommand{
 
 		switch($strSubCommand)
 		{
+			case 'copy':
+				$strOutput .= "Usage: /$strAlias copy l:5 w:5 h:5 n:house_copy\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(n)ame, (l)ength, (w)idth, (h)eight, and (e)elevation\n";
+				$strOutput .= "Copy an area of blocks and save to a named clip\n";
+			break;
+
+			case 'paste':
+				$strOutput .= "Usage: /$strAlias paste n:house_copy\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(n)ame, and (e)elevation\n";
+				$strOutput .= "Paste an area of blocks by a named clip\n";
+			break;
+
 			case 'undo':
 				$strOutput .= "Usage: /$strAlias undo\n";
 				$strOutput .= "This command takes no params\n";
