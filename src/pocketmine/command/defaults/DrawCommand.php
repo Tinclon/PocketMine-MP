@@ -31,9 +31,6 @@ use pocketmine\utils\Config;
 
 class DrawCommand extends VanillaCommand{
 
-    // Everything seems to start from the block in front of you while looking north.
-    //  So we need to start all commands by subtracting one from x for every direction
-
     const DIR_NORTH = '0';      // When we're facing north, positive x value recedes into the distance, positive z value goes to the right
     const DIR_EAST = '1';       // When we're facing east,  positive z value recedes into the distance, negative x value goes to the right
     const DIR_SOUTH = '2';      // When we're facing south, negative x value recedes into the distance, negative z value goes to the right
@@ -147,6 +144,10 @@ class DrawCommand extends VanillaCommand{
 		{
 			$this->objStartingVector = new Vector3($objIssuer->getLocation()->x, $objIssuer->getLocation()->y, $objIssuer->getLocation()->z);
 		}
+
+        $this->objStartingVector->x = floor($this->objStartingVector->x);
+        $this->objStartingVector->y = floor($this->objStartingVector->y);
+        $this->objStartingVector->z = floor($this->objStartingVector->z);
 
 		if($objStartingDirection === '')
 		{
@@ -410,9 +411,7 @@ class DrawCommand extends VanillaCommand{
 		$exclude = (isset($arrParams['exclude'])) ? strtoupper($arrParams['exclude']) : '';
 		$exclude .= (isset($arrParams['include']) && strpos(strtoupper($arrParams['include']),'AIR') !== FALSE) ? '' : ',AIR';
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -479,9 +478,7 @@ class DrawCommand extends VanillaCommand{
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 	    $copyStartingDirection = $clipConfig->get($arrParams['name'].'.d');
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -565,9 +562,7 @@ class DrawCommand extends VanillaCommand{
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : -1;
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -588,9 +583,7 @@ class DrawCommand extends VanillaCommand{
 
 		$objItem = Item::get(Item::STILL_WATER);
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y;
 		$current_z = $this->objStartingVector->z;
 
@@ -613,9 +606,7 @@ class DrawCommand extends VanillaCommand{
 
 		$objItem = Item::get(Item::STILL_LAVA);
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y;
 		$current_z = $this->objStartingVector->z;
 
@@ -656,9 +647,7 @@ class DrawCommand extends VanillaCommand{
 		$objItem = $objIssuer->getInventory()->getItemInHand();
 
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -695,9 +684,7 @@ class DrawCommand extends VanillaCommand{
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
 		$objItem = $objIssuer->getInventory()->getItemInHand();
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -766,9 +753,7 @@ class DrawCommand extends VanillaCommand{
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
         if($hollow || $aroundMe) {
-            // Everything seems to start from the block in front of you while looking north.
-            //  So we need to start by subtracting one from x for every direction
-            $current_x = $this->objStartingVector->x - 1;
+            $current_x = $this->objStartingVector->x;
             $current_y = $this->objStartingVector->y + $intElevation;
             $current_z = $this->objStartingVector->z;
         } else {
@@ -776,19 +761,19 @@ class DrawCommand extends VanillaCommand{
             switch($this->objStartingDirection)
             {
                 case self::DIR_NORTH:
-                    $current_x = $this->objStartingVector->x - 1 + $intRadius;
+                    $current_x = $this->objStartingVector->x + $intRadius;
                     $current_z = $this->objStartingVector->z + $intRadius;
                 break;
                 case self::DIR_EAST:
-                    $current_x = $this->objStartingVector->x - 1 - $intRadius;
+                    $current_x = $this->objStartingVector->x - $intRadius;
                     $current_z = $this->objStartingVector->z + $intRadius;
                 break;
                 case self::DIR_SOUTH:
-                    $current_x = $this->objStartingVector->x - 1 - $intRadius;
+                    $current_x = $this->objStartingVector->x - $intRadius;
                     $current_z = $this->objStartingVector->z - $intRadius;
                 break;
                 case self::DIR_WEST:
-                    $current_x = $this->objStartingVector->x - 1 + $intRadius;
+                    $current_x = $this->objStartingVector->x + $intRadius;
                     $current_z = $this->objStartingVector->z - $intRadius;
                 break;
             }
@@ -830,9 +815,7 @@ class DrawCommand extends VanillaCommand{
 
 		$intHeight = $intHeight / 2;
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
         $current_y = $this->objStartingVector->y + $intElevation + $intHeight;
         $current_z = $this->objStartingVector->z;
 
@@ -915,7 +898,8 @@ class DrawCommand extends VanillaCommand{
 
         // Everything seems to start from the block in front of you while looking north.
         //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        echo 'Current x: '. $this->objStartingVector->x;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -936,9 +920,7 @@ class DrawCommand extends VanillaCommand{
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
@@ -958,9 +940,7 @@ class DrawCommand extends VanillaCommand{
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 		$intCurrentSize = $intSize;
@@ -994,9 +974,7 @@ class DrawCommand extends VanillaCommand{
 
 	private function __fncDrawWall($arrParams, $objIssuer)
 	{
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y;
 		$current_z = $this->objStartingVector->z;
 
@@ -1132,9 +1110,7 @@ class DrawCommand extends VanillaCommand{
 			break;
 		}
 
-        // Everything seems to start from the block in front of you while looking north.
-        //  So we need to start by subtracting one from x for every direction
-        $current_x = $this->objStartingVector->x - 1;
+        $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 		$block_pos = new Vector3($current_x, $current_y, $current_z);
