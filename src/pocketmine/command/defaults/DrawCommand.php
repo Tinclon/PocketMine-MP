@@ -320,12 +320,20 @@ class DrawCommand extends VanillaCommand{
                 $strOutput = $this->__fncPaste($arrNamedParams, $objIssuer);
             break;
 
+            case 'measure':
+                $strOutput = $this->__fncMeasure($arrNamedParams, $objIssuer);
+            break;
+
             case 'cube':
                 $strOutput = $this->__fncDrawCube($arrNamedParams, $objIssuer);
             break;
 
             case 'floor':
                 $strOutput = $this->__fncDrawFloor($arrNamedParams, $objIssuer);
+            break;
+
+            case 'groundcover':
+                //use getHighestBlockAt function in Level object
             break;
 
             case 'wall':
@@ -533,6 +541,93 @@ class DrawCommand extends VanillaCommand{
 		}
 
 		return $this->arrReturnMessage['paste'];
+	}
+
+
+    private function __fncMeasure($arrParams, $objIssuer)
+	{
+        $current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y;
+		$current_z = $this->objStartingVector->z;
+
+		$objItemInHand = $objIssuer->getInventory()->getItemInHand();
+        if($objItemInHand instanceof ItemBlock) {
+            $objBlockInHand = Block::get($objItemInHand->getId(), $objItemInHand->getDamage());
+        } else {
+            $objItemInHand = Item::get(Item::AIR);
+            $objBlockInHand = Block::get($objItemInHand->getId(), $objItemInHand->getDamage());
+        }
+
+        $dist = -1;
+        $xErrorMin = 0;
+        $xErrorMax = 0;
+        $zErrorMin = 0;
+        $zErrorMax = 0;
+        switch($this->objStartingDirection)
+        {
+            case self::DIR_NORTH:
+                $zErrorMin = -1;
+                $zErrorMax = 1;
+            break;
+            case self::DIR_EAST:
+                $xErrorMin = -1;
+                $xErrorMax = 1;
+            break;
+            case self::DIR_SOUTH:
+                $zErrorMin = -1;
+                $zErrorMax = 1;
+            break;
+            case self::DIR_WEST:
+                $xErrorMin = -1;
+                $xErrorMax = 1;
+            break;
+        }
+        for($i = 0 ; $i <= 1000 ; $i++) {
+
+            switch($this->objStartingDirection)
+            {
+                case self::DIR_NORTH:
+                    $block_pos = new Vector3($current_x + $i, $current_y, $current_z);
+                break;
+                case self::DIR_EAST:
+                    $block_pos = new Vector3($current_x, $current_y, $current_z + $i);
+                break;
+                case self::DIR_SOUTH:
+                    $block_pos = new Vector3($current_x - $i, $current_y, $current_z);
+                break;
+                case self::DIR_WEST:
+                    $block_pos = new Vector3($current_x, $current_y, $current_z - $i);
+                break;
+            }
+
+            $foundIt = false;
+            for($x = $xErrorMin; $x <= $xErrorMax && !$foundIt; $x++) {
+                for($y = -1; $y < 5 && !$foundIt; $y++) {
+                    for($z = $zErrorMin; $z <= $zErrorMax && !$foundIt; $z++) {
+                        $try_block_pos = new Vector3($block_pos->getX()+$x, $block_pos->getY()+$y, $block_pos->getZ()+$z);
+                        $objBlock = $objIssuer->getLevel()->getBlock($try_block_pos);
+                        if($objBlock->getId() == $objBlockInHand->getId() && $objBlock->getDamage() == $objBlockInHand->getDamage()) {
+                            $foundIt = true;
+                        }
+                    }
+                }
+            }
+
+            if($foundIt) {
+                $dist = $i;
+                break;
+            }
+        }
+
+        $message = '';
+        if($dist > -1) {
+            // Found it
+            $message = 'Distance to next '.$objBlockInHand->GetName().' block is: '.$dist.'. Including last block, excluding block on which you are standing.';
+        } else {
+            $message = 'Distance to next '.$objBlockInHand->GetName().' block is too far to calculate';
+        }
+
+		return $message;
 	}
 
 	private function __fncUndo($arrParams, $objIssuer)
@@ -1013,7 +1108,7 @@ class DrawCommand extends VanillaCommand{
 
 				$objFloor = new Vector3($current_x, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = (int) self::DIR_EAST;  // TODO CNielsen: These seem wrong
+				$intOppositeDirection = (int) self::DIR_EAST;
 			break;
 			case self::DIR_EAST:
 				$objFrontWallPos = new Vector3($current_x + 1, $current_y, $current_z + 1);
@@ -1022,7 +1117,7 @@ class DrawCommand extends VanillaCommand{
 				$objOppositeSideWallPos = new Vector3($current_x - $intSize + 1, $current_y, $current_z);
 				$objFloor = new Vector3($current_x, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = (int) self::DIR_SOUTH;  // TODO CNielsen: These seem wrong
+				$intOppositeDirection = (int) self::DIR_SOUTH;
 			break;
 			case self::DIR_SOUTH:
 				$objFrontWallPos = new Vector3($current_x - 2, $current_y, $current_z );
@@ -1031,7 +1126,7 @@ class DrawCommand extends VanillaCommand{
 				$objOppositeSideWallPos = new Vector3($current_x - 2, $current_y, $current_z - $intSize + 1);
 				$objFloor = new Vector3($current_x - 1, $current_y, $current_z);
 				$objCeiling = new Vector3($current_x -1, $current_y + $intSize - 1, $current_z);
-				$intOppositeDirection = (int) self::DIR_WEST;  // TODO CNielsen: These seem wrong
+				$intOppositeDirection = (int) self::DIR_WEST;
 			break;
 			case self::DIR_WEST:
 				$objFrontWallPos = new Vector3($current_x, $current_y, $current_z - 3);
@@ -1040,7 +1135,7 @@ class DrawCommand extends VanillaCommand{
 				$objOppositeSideWallPos = new Vector3($current_x + $intSize - 1, $current_y, $current_z - 3);
 				$objFloor = new Vector3($current_x, $current_y, $current_z - 2);
 				$objCeiling = new Vector3($current_x, $current_y + $intSize - 1, $current_z - 2);
-				$intOppositeDirection = (int) self::DIR_NORTH;  // TODO CNielsen: These seem wrong
+				$intOppositeDirection = (int) self::DIR_NORTH;
 			break;
 		}
 
@@ -1095,7 +1190,6 @@ class DrawCommand extends VanillaCommand{
 
 		switch($this->objStartingDirection)
 		{
-		    // TODO CNielsen: This seems wrong
 			case self::DIR_NORTH:
 				$intOppositeDirection = (int) self::DIR_EAST;
 			break;
@@ -1387,6 +1481,11 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(n)ame, and (e)elevation\n";
 				$strOutput .= "Paste an area of blocks by a named clip\n";
+			break;
+
+			case 'measure':
+				$strOutput .= "Usage: /$strAlias measure\n";
+				$strOutput .= "Measure distance to next block of same type as that in hand\n";
 			break;
 
 			case 'undo':
