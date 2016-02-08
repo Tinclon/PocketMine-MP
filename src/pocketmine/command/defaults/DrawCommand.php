@@ -68,6 +68,7 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['recording_list'] = 'Available macros: ';
 		$this->arrReturnMessage['undo'] = 'Last command has been undone.';
 		$this->arrReturnMessage['floor'] = 'Nice looking floor you got there!';
+		$this->arrReturnMessage['groundcover'] = 'A blanket of blocks!';
 		$this->arrReturnMessage['pool'] = 'Time to cool off!';
 		$this->arrReturnMessage['lavalake'] = 'Warm and invitine!';
 		$this->arrReturnMessage['cut'] = 'Blocks have been removed.';
@@ -333,7 +334,7 @@ class DrawCommand extends VanillaCommand{
             break;
 
             case 'groundcover':
-                //use getHighestBlockAt function in Level object
+                $strOutput = $this->__fncDrawGroundCover($arrNamedParams, $objIssuer);
             break;
 
             case 'wall':
@@ -667,6 +668,72 @@ class DrawCommand extends VanillaCommand{
 		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intLength,'intWidth'=>$intWidth,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
 
 		return $this->arrReturnMessage['floor'];
+	}
+
+	private function __fncDrawGroundCover($arrParams, $objIssuer)
+	{
+		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
+
+        $current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y;
+		$current_z = $this->objStartingVector->z;
+
+        $xMult = 1;
+        $zMult = 1;
+        $xDim = $intLength;
+        $zDim = $intWidth;
+
+        switch($this->objStartingDirection)
+        {
+            case self::DIR_NORTH:
+                $xMult = 1;
+                $zMult = 1;
+                $xDim = $intLength;
+                $zDim = $intWidth;
+            break;
+            case self::DIR_EAST:
+                $xMult = -1;
+                $zMult = 1;
+                $xDim = $intWidth;
+                $zDim = $intLength;
+            break;
+            case self::DIR_SOUTH:
+                $xMult = -1;
+                $zMult = -1;
+                $xDim = $intLength;
+                $zDim = $intWidth;
+            break;
+            case self::DIR_WEST:
+                $xMult = 1;
+                $zMult = -1;
+                $xDim = $intWidth;
+                $zDim = $intLength;
+            break;
+        }
+
+        if($objItem instanceof ItemBlock) {
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        } else {
+            $objItem = Item::get(Item::AIR);
+            $objBlock = Block::get($objItem->getId(), $objItem->getDamage());
+        }
+
+        for($x = $xDim * $xMult; $x != 0; $x-=$xMult){
+            for($z = $zDim * $zMult; $z != 0; $z-=$zMult){
+
+                $objHighestBlock = $objIssuer->getLevel()->getHighestBlockAt($current_x + $x, $current_z + $z);
+
+                $block_pos = new Vector3($current_x + $x, $objHighestBlock, $current_z + $z);
+
+                $this->__fncSetRollback($objIssuer,$block_pos);
+
+                $objIssuer->getLevel()->setBlock($block_pos, $objBlock);
+            }
+        }
+
+		return $this->arrReturnMessage['groundcover'];
 	}
 
 	private function __fncDrawPool($arrParams, $objIssuer)
@@ -1523,6 +1590,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "This will draw a floor in front of you.\n";
 				$strOutput .= "e:-1 will draw on the level you are standing.\n";
 				$strOutput .= "e:6 will draw a ceiling.\n";
+			break;
+
+			case 'groundcover':
+				$strOutput .= "Usage: /$strAlias groundcover l:12 w:12\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(l)ength, and (w)idth\n";
+				$strOutput .= "This will cover the ground in front of you.\n";
 			break;
 
 			case 'wall':
