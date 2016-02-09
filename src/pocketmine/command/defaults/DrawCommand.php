@@ -83,6 +83,7 @@ class DrawCommand extends VanillaCommand{
 		$this->arrReturnMessage['prism'] = 'Run for your life, it\'s a Cuboid!.';
 		$this->arrReturnMessage['cube'] = 'Solid as could be!';
 		$this->arrReturnMessage['pyramid'] = 'A true wonder!';
+		$this->arrReturnMessage['tomb'] = 'A place to sleep!';
 		$this->arrReturnMessage['wall'] = 'There\'s a wall for you!';
 		$this->arrReturnMessage['box'] = 'Have a box!';
 		$this->arrReturnMessage['string'] = 'Here is a message for you.';
@@ -351,6 +352,10 @@ class DrawCommand extends VanillaCommand{
 
             case 'pyramid':
                 $strOutput = $this->__fncDrawPyramid($arrNamedParams, $objIssuer);
+            break;
+
+            case 'tomb':
+                $strOutput = $this->__fncDrawTomb($arrNamedParams, $objIssuer);
             break;
 
             case 'box':
@@ -1132,6 +1137,49 @@ class DrawCommand extends VanillaCommand{
 		return $this->arrReturnMessage['pyramid'];
 	}
 
+	private function __fncDrawTomb($arrParams, $objIssuer)
+	{
+		//first get the coordinates of where the user is standing
+		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['length'];
+		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
+        $objItem = $objIssuer->getInventory()->getItemInHand();
+        $objAirItem = Item::get(Item::AIR);
+
+        $current_x = $this->objStartingVector->x;
+		$current_y = $this->objStartingVector->y + $intElevation;
+		$current_z = $this->objStartingVector->z;
+		$intCurrentSize = $intSize;
+
+		for($i=0;$i< $intSize/2; $i++)
+		{
+			switch($this->objStartingDirection)
+			{
+				case self::DIR_NORTH:
+					$block_pos = new Vector3($current_x + $i, $current_y + $i, $current_z + $i);
+				break;
+				case self::DIR_EAST:
+					$block_pos = new Vector3($current_x - $i, $current_y + $i, $current_z + $i);
+				break;
+				case self::DIR_SOUTH:
+					$block_pos = new Vector3($current_x - $i, $current_y + $i, $current_z - $i);
+				break;
+				case self::DIR_WEST:
+					$block_pos = new Vector3($current_x + $i, $current_y + $i, $current_z - $i);
+				break;
+			}
+
+    		$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intCurrentSize,'intWidth'=>$intCurrentSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
+    		if ($i > 1) {
+    		    // Hollow it out
+    		    $block_pos->setComponents($block_pos->getX(), $block_pos->getY()-1, $block_pos->getZ());
+    		    $arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intCurrentSize,'intWidth'=>$intCurrentSize,'objStartingPos'=>$block_pos,'objItem'=>$objAirItem));
+    		 }
+			$intCurrentSize = $intCurrentSize - 2;
+		}
+
+		return $this->arrReturnMessage['tomb'];
+	}
+
 
 
 	private function __fncDrawWall($arrParams, $objIssuer)
@@ -1626,6 +1674,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "Optional params:\n";
 				$strOutput .= "(s)ize, and (e)elevation\n";
 				$strOutput .= "This will draw a solid pyramid in front of you.\n";
+			break;
+
+			case 'tomb':
+				$strOutput .= "Usage: /$strAlias tomb s:40\n";
+				$strOutput .= "Optional params:\n";
+				$strOutput .= "(s)ize, and (e)elevation\n";
+				$strOutput .= "This will draw a hollow pyramid in front of you.\n";
 			break;
 
 			case 'diamond':
