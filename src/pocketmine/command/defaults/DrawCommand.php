@@ -334,6 +334,10 @@ class DrawCommand extends VanillaCommand{
                 $strOutput = $this->__fncDrawFloor($arrNamedParams, $objIssuer);
             break;
 
+            case 'groundreplace':
+                $strOutput = $this->__fncDrawGroundReplace($arrNamedParams, $objIssuer);
+            break;
+
             case 'groundcover':
                 $strOutput = $this->__fncDrawGroundCover($arrNamedParams, $objIssuer);
             break;
@@ -588,7 +592,7 @@ class DrawCommand extends VanillaCommand{
                 $xErrorMax = 1;
             break;
         }
-        for($i = 0 ; $i <= 1000 ; $i++) {
+        for($i = 0 ; $i <= 125 ; $i++) {        // After about 125, this stops working
 
             switch($this->objStartingDirection)
             {
@@ -675,7 +679,11 @@ class DrawCommand extends VanillaCommand{
 		return $this->arrReturnMessage['floor'];
 	}
 
-	private function __fncDrawGroundCover($arrParams, $objIssuer)
+    private function __fncDrawGroundReplace($arrParams, $objIssuer) {
+        return $this->__fncDrawGroundCover($arrParams, $objIssuer, 0);
+    }
+
+	private function __fncDrawGroundCover($arrParams, $objIssuer, $intElevation = 1)
 	{
 		$intLength = (isset($arrParams['length']) && is_numeric ($arrParams['length'])) ? (int) $arrParams['length'] : $this->arrDefaults->get($objIssuer->getName())['length'];
 		$intWidth = (isset($arrParams['width']) && is_numeric ($arrParams['width'])) ? (int) $arrParams['width'] : $this->arrDefaults->get($objIssuer->getName())['width'];
@@ -731,7 +739,14 @@ class DrawCommand extends VanillaCommand{
                 $objHighestBlock = $objIssuer->getLevel()->getHighestBlockAt($current_x + $x, $current_z + $z);
 
                 $block_pos = new Vector3($current_x + $x, $objHighestBlock, $current_z + $z);
+                $objExistingBlock = $objIssuer->getLevel()->getBlock($block_pos);
+                while ($objHighestBlock > 0 && $objExistingBlock->canBeReplaced()) {
+                    $objHighestBlock--;
+                    $block_pos = new Vector3($current_x + $x, $objHighestBlock, $current_z + $z);
+                    $objExistingBlock = $objIssuer->getLevel()->getBlock($block_pos);
+                }
 
+                $block_pos = new Vector3($current_x + $x, $objHighestBlock + $intElevation, $current_z + $z);
                 $this->__fncSetRollback($objIssuer,$block_pos);
 
                 $objIssuer->getLevel()->setBlock($block_pos, $objBlock);
@@ -1646,6 +1661,13 @@ class DrawCommand extends VanillaCommand{
 				$strOutput .= "(l)ength, and (w)idth\n";
 				$strOutput .= "This will cover the ground in front of you.\n";
 			break;
+
+            case 'groundreplace':
+                $strOutput .= "Usage: /$strAlias groundreplace l:12 w:12\n";
+                $strOutput .= "Optional params:\n";
+                $strOutput .= "(l)ength, and (w)idth\n";
+                $strOutput .= "This will replace the ground in front of you.\n";
+                break;
 
 			case 'wall':
 				$strOutput .= "Usage: /$strAlias wall l:8 h:4\n";
