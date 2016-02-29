@@ -25,17 +25,17 @@ use pocketmine\nbt\NBT;
 
 #include <rules/NBT.h>
 
-class Double extends NamedTag{
+class ByteTag extends NamedTag{
 
 	public function getType(){
-		return NBT::TAG_Double;
+		return NBT::TAG_Byte;
 	}
 
 	public function read(NBT $nbt){
-		$this->value = $nbt->getDouble();
+		$this->value = $nbt->getByte();
 	}
 
 	public function write(NBT $nbt){
-		$nbt->putDouble($this->value);
+		$nbt->putByte($this->value);
 	}
 }

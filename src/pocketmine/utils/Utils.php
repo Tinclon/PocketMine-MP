@@ -2,11 +2,11 @@
 
 /*
  *
- *  ____            _        _   __  __ _                  __  __ ____  
- * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \ 
+ *  ____            _        _   __  __ _                  __  __ ____
+ * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
  * | |_) / _ \ / __| |/ / _ \ __| |\/| | | '_ \ / _ \_____| |\/| | |_) |
- * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/ 
- * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_| 
+ * |  __/ (_) | (__|   <  __/ |_| |  | | | | | |  __/_____| |  | |  __/
+ * |_|   \___/ \___|_|\_\___|\__|_|  |_|_|_| |_|\___|     |_|  |_|_|
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -15,7 +15,7 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
@@ -23,6 +23,7 @@
  * Various Utilities used around the code
  */
 namespace pocketmine\utils;
+
 use pocketmine\ThreadManager;
 
 /**
@@ -47,34 +48,6 @@ class Utils{
 		}else{
 			return sha1(strtolower($variable));
 		}
-	}
-
-	/**
-	 * @deprecated
-	 */
-	public static function randomUUID(){
-		return Utils::toUUID(Binary::writeInt(time()) . Binary::writeShort(getmypid()) . Binary::writeShort(getmyuid()) . Binary::writeInt(mt_rand(-0x7fffffff, 0x7fffffff)) . Binary::writeInt(mt_rand(-0x7fffffff, 0x7fffffff)), 2);
-	}
-
-	/**
-	 * @deprecated
-	 */
-	public static function dataToUUID(...$params){
-		return Utils::toUUID(hash("md5", implode($params), true), 3);
-	}
-
-	/**
-	 * @deprecated
-	 */
-	public static function toUUID($data, $version = 2, $fixed = "8"){
-		if(strlen($data) !== 16){
-			throw new \InvalidArgumentException("Data must be 16 bytes");
-		}
-
-		$hex = bin2hex($data);
-
-		//xxxxxxxx-xxxx-Mxxx-Nxxx-xxxxxxxxxxxx 8-4-4-12
-		return substr($hex, 0, 8) . "-" . substr($hex, 8, 4) . "-" . hexdec($version) . substr($hex, 13, 3) . "-" . $fixed{0} . substr($hex, 17, 3) . "-" . substr($hex, 20, 12);
 	}
 
 	/**
@@ -220,7 +193,7 @@ class Utils{
 				self::$os = "other";
 			}
 		}
-		
+
 		return self::$os;
 	}
 
@@ -490,8 +463,8 @@ class Utils{
 	/**
 	 * GETs an URL using cURL
 	 *
-	 * @param     $page
-	 * @param int $timeout default 10
+	 * @param       $page
+	 * @param int   $timeout default 10
 	 * @param array $extraHeaders
 	 *
 	 * @return bool|mixed
@@ -524,7 +497,7 @@ class Utils{
 	 * @param              $page
 	 * @param array|string $args
 	 * @param int          $timeout
-	 * @param array $extraHeaders
+	 * @param array        $extraHeaders
 	 *
 	 * @return bool|mixed
 	 */
@@ -552,4 +525,22 @@ class Utils{
 		return $ret;
 	}
 
+	public static function javaStringHash($string){
+		$hash = 0;
+		for($i = 0; $i < strlen($string); $i++){
+			$ord = ord($string{$i});
+			if($ord & 0x80){
+				$ord -= 0x100;
+			}
+			$hash = 31 * $hash + $ord;
+			while($hash > 0x7FFFFFFF){
+				$hash -= 0x100000000;
+			}
+			while($hash < -0x80000000){
+				$hash += 0x100000000;
+			}
+			$hash &= 0xFFFFFFFF;
+		}
+		return $hash;
+	}
 }
