@@ -100,6 +100,7 @@ use pocketmine\nbt\tag\String;
 use pocketmine\network\protocol\AdventureSettingsPacket;
 use pocketmine\network\protocol\AnimatePacket;
 use pocketmine\network\protocol\BatchPacket;
+use pocketmine\network\protocol\ChunkRadiusUpdatePacket;
 use pocketmine\network\protocol\ContainerClosePacket;
 use pocketmine\network\protocol\ContainerSetContentPacket;
 use pocketmine\network\protocol\DataPacket;
@@ -2908,6 +2909,14 @@ class Player extends Human implements CommandSender, InventoryHolder, ChunkLoade
 						}
 					}
 				}
+				break;
+			case ProtocolInfo::REQUEST_CHUNK_RADIUS_PACKET:
+				if($this->spawned){
+					$this->viewDistance = $packet->radius ** 2;
+				}
+				$pk = new ChunkRadiusUpdatePacket();
+				$pk->radius = $packet->radius;
+				$this->dataPacket($pk);
 				break;
 			default:
 				break;
