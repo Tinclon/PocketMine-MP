@@ -1,5 +1,4 @@
 <?php
-
 /*
  *
  *  ____            _        _   __  __ _                  __  __ ____
@@ -15,44 +14,44 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
 namespace pocketmine\entity;
 
+use pocketmine\item\Item as drp;
 use pocketmine\Player;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
+class IronGolem extends Animal{
+    const NETWORK_ID = 20;
 
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
+    public $height = 2.688;
+    public $width = 1.625;
+    public $lenght = 0.906;
 
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+    public function initEntity(){
+        $this->setMaxHealth(100);
+        parent::initEntity();
+    }
 
-	public function initEntity(){
-		$this->setMaxHealth(10);
-		parent::initEntity();
-	}
+    public function getName(){
+        return "Iron Golem";
+    }
 
-	public function getName(){
-		return "Ocelot";
-	}
+    public function spawnTo(Player $player){
+        $pk = $this->addEntityDataPacket($player);
+        $pk->type = IronGolem::NETWORK_ID;
 
-	public function spawnTo(Player $player){
-		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+        $player->dataPacket($pk);
+        parent::spawnTo($player);
+    }
 
-		$player->dataPacket($pk);
-		parent::spawnTo($player);
-	}
+    public function getDrops(){
+        return [
+            drp::get(ItemItem::IRON_INGOT, 0, mt_rand(3, 5)),
+            drp::get(ItemItem::POPPY, 0, mt_rand(0, 2))
+        ];
+    }
 
-	public function getDrops(){
-		return [];
-	}
 }

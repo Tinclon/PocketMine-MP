@@ -15,44 +15,42 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
 namespace pocketmine\entity;
 
+use pocketmine\item\Item as ItemItem;
 use pocketmine\Player;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
+class MagmaCube extends Living{
+	const NETWORK_ID = 42;
 
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
-
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+	public $width = 2;
+	public $length = 2;
+	public $height = 2;
 
 	public function initEntity(){
-		$this->setMaxHealth(10);
+		//$this->setMaxHealth(10); //TODO Size
 		parent::initEntity();
 	}
 
 	public function getName(){
-		return "Ocelot";
+		return "Magma Cube";
 	}
 
-	public function spawnTo(Player $player){
+	 public function spawnTo(Player $player){
 		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+		$pk->type = MagmaCube::NETWORK_ID;
 
 		$player->dataPacket($pk);
 		parent::spawnTo($player);
 	}
 
 	public function getDrops(){
-		return [];
+		return [
+			ItemItem::get(ItemItem::MAGMA_CREAM, 0, mt_rand(0, 2))
+		];
 	}
 }

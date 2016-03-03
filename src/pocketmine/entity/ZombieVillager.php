@@ -15,44 +15,36 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
+
 namespace pocketmine\entity;
+
 
 use pocketmine\Player;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
-
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
-
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+class ZombieVillager extends Zombie{
+	public $width = 1.031;
+	public $length = 0.891;
+	public $height = 2.125;
 
 	public function initEntity(){
-		$this->setMaxHealth(10);
+		$this->setMaxHealth(20);
 		parent::initEntity();
 	}
 
 	public function getName(){
-		return "Ocelot";
+		return "Zombie Villager";
 	}
 
 	public function spawnTo(Player $player){
 		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+		$pk->type = Zombie::NETWORK_ID;
 
 		$player->dataPacket($pk);
 		parent::spawnTo($player);
 	}
 
-	public function getDrops(){
-		return [];
-	}
 }

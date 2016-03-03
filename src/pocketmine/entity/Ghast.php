@@ -15,25 +15,26 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
 namespace pocketmine\entity;
 
+use pocketmine\item\Item as ItemItem;
 use pocketmine\Player;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
+class Ghast extends Monster{
+	const NETWORK_ID = 41;
 
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
+	public $width = 4.5;
+	public $length = 4.5;
+	public $height = 4.5;
 
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+	public static $range = 16;
+	public static $speed = 0.25;
+	public static $jump = 1.8;
+	public static $mindist = 3;
 
 	public function initEntity(){
 		$this->setMaxHealth(10);
@@ -41,18 +42,23 @@ class Ozelot extends Animal implements Tameable{
 	}
 
 	public function getName(){
-		return "Ocelot";
+		return "Ghast";
 	}
 
-	public function spawnTo(Player $player){
+	 public function spawnTo(Player $player){
 		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+		$pk->type = Ghast::NETWORK_ID;
 
 		$player->dataPacket($pk);
 		parent::spawnTo($player);
 	}
 
 	public function getDrops(){
-		return [];
+		return [
+			ItemItem::get(ItemItem::GHAST_TEAR, 0, mt_rand(0, 1)),
+			ItemItem::get(ItemItem::GUNPOWDER, 0, mt_rand(0, 2))
+		];
 	}
+
+
 }

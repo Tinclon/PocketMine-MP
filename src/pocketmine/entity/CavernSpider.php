@@ -15,44 +15,44 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
 namespace pocketmine\entity;
 
+use pocketmine\item\Item as ItemItem;
 use pocketmine\Player;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
+class CavernSpider extends Monster{
+	const NETWORK_ID = 40;
 
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
-
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+	public $width = 1.438;
+	public $length = 1.188;
+	public $height = 0.547;
 
 	public function initEntity(){
-		$this->setMaxHealth(10);
+		$this->setMaxHealth(12);
 		parent::initEntity();
 	}
 
 	public function getName(){
-		return "Ocelot";
+		return "Cave Spider";
 	}
 
 	public function spawnTo(Player $player){
 		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+		$pk->type = CavernSpider::NETWORK_ID;
 
 		$player->dataPacket($pk);
 		parent::spawnTo($player);
 	}
 
 	public function getDrops(){
-		return [];
-	}
+		return[
+			ItemItem::get(ItemItem::STRING, 0, mt_rand(0, 2)),
+			ItemItem::get(ItemItem::SPIDER_EYE, 0, mt_rand(0, 1))
+		];
+	 }
+
 }

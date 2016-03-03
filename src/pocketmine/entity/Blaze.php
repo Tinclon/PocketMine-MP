@@ -15,44 +15,42 @@
  *
  * @author PocketMine Team
  * @link http://www.pocketmine.net/
- * 
+ *
  *
 */
 
 namespace pocketmine\entity;
 
 use pocketmine\Player;
+use pocketmine\item\Item as ItemItem;
 
-class Ozelot extends Animal implements Tameable{
-	const NETWORK_ID = 22;
+class Blaze extends Monster{
+	const NETWORK_ID = 43;
 
-	public $width = 0.312;
-	public $length = 2.188;
-	public $height = 0.75;
-
-	public static $range = 10;
-	public static $speed = 0.8;
-	public static $jump = 1;
-	public static $mindist = 10;
+	public $height = 1.5;
+	public $width = 1.25;
+	public $lenght = 0.906;
 
 	public function initEntity(){
-		$this->setMaxHealth(10);
+		$this->setMaxHealth(20);
 		parent::initEntity();
 	}
 
 	public function getName(){
-		return "Ocelot";
+		return "Blaze";
 	}
 
 	public function spawnTo(Player $player){
 		$pk = $this->addEntityDataPacket($player);
-		$pk->type = Ozelot::NETWORK_ID;
+		$pk->type = Blaze::NETWORK_ID;
 
 		$player->dataPacket($pk);
 		parent::spawnTo($player);
 	}
 
 	public function getDrops(){
-		return [];
+		return [
+			ItemItem::get(ItemItem::BLAZE_ROD, 0, mt_rand(0, 1))
+		];
 	}
 }
