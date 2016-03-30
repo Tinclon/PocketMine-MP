@@ -1101,16 +1101,25 @@ class DrawCommand extends VanillaCommand{
 		$intSize = (isset($arrParams['size']) && is_numeric ($arrParams['size'])) ? (int) $arrParams['size'] : $this->arrDefaults->get($objIssuer->getName())['length'];
 		$intElevation = (isset($arrParams['elevation']) && is_numeric ($arrParams['elevation'])) ? (int) $arrParams['elevation'] : $this->arrDefaults->get($objIssuer->getName())['elevation'];
         $objItem = $objIssuer->getInventory()->getItemInHand();
+        $objAirItem = Item::get(Item::AIR);
 
         $current_x = $this->objStartingVector->x;
 		$current_y = $this->objStartingVector->y + $intElevation;
 		$current_z = $this->objStartingVector->z;
 
-		for($i=0;$i<$intSize;$i++)
-		{
-			$block_pos = new Vector3($current_x, $current_y + $i, $current_z);
-			$arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
-		}
+        if ($objItem->getId() == $objAirItem->getId() && $objItem->getDamage() == $objAirItem->getDamage()) {
+            for($i=$intSize-1;$i>=0;$i--)
+            {
+                $block_pos = new Vector3($current_x, $current_y + $i, $current_z);
+                $arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
+            }
+        } else {
+            for($i=0;$i<$intSize;$i++)
+            {
+                $block_pos = new Vector3($current_x, $current_y + $i, $current_z);
+                $arrRectangle = $this->__fncDrawRectangle(array('objIssuer'=>$objIssuer,'strStaticPlain'=>'horizontal','intLength'=>$intSize,'intWidth'=>$intSize,'objStartingPos'=>$block_pos,'objItem'=>$objItem));
+            }
+        }
 
 		return $this->arrReturnMessage['cube'];
 	}
