@@ -21,79 +21,15 @@
 
 namespace pocketmine\block;
 
-use pocketmine\item\Item;
-use pocketmine\level\Level;
-use pocketmine\math\Vector3;
-use pocketmine\Player;
+class TripwireHook extends Solid {
 
-class TripwireHook extends Flowable implements RedstonePowerSource, Attaching{
-	protected $id = self::TRIPWIRE_HOOK;
-	protected $triggedUntil = 0;
+    protected $id = self::TRIPWIRE_HOOK;
 
-	public function __construct($meta = 0){
-		$this->meta = $meta;
-	}
+    public function __construct($meta = 0){
+        $this->meta = $meta;
+    }
 
-	public function getPowerLevel(){
-		return ($this->triggedUntil > $this->getLevel()->getServer()->getTick()) ? 16 : 0;
-	}
-
-	public function getPoweringSides(){
-		return [$this->getAttachSide()];
-	}
-
-	public function getAttachSide(){
-		switch($this->meta & 3){
-			case 0:
-				return self::SIDE_NORTH;
-			case 1:
-				return self::SIDE_EAST;
-			case 2:
-				return self::SIDE_SOUTH;
-			case 3:
-				return self::SIDE_WEST;
-		}
-		assert(false, "Meta is not an integer");
-		return 0;
-	}
-
-	public function place(Item $item, Block $block, Block $target, $face, $fx, $fy, $fz, Player $player = null){
-		if($face === self::SIDE_SOUTH){
-			$this->meta = 0;
-		}elseif($face === self::SIDE_WEST){
-			$this->meta = 1;
-		}elseif($face === self::SIDE_NORTH){
-			$this->meta = 2;
-		}elseif($face === self::SIDE_EAST){
-			$this->meta = 3;
-		}else{
-			return false;
-		}
-		return parent::place($item, $block, $target, $face, $fx, $fy, $fz, $player);
-	}
-
-	public function canAttachTo(Block $block){
-		return !$block->isTransparent();
-	}
-
-	public function trigger($ticks = 10){
-		$this->triggedUntil = max($this->triggedUntil, $this->getLevel()->getServer()->getTick() + $ticks);
-		$this->getLevel()->updateAround($this, Level::BLOCK_UPDATE_REDSTONE);
-		$this->getLevel()->updateAround($this->getSide($this->getAttachSide()), Level::BLOCK_UPDATE_REDSTONE);
-		$this->getLevel()->scheduleUpdate($this, $ticks);
-	}
-
-	public function onUpdate($type){
-		parent::onUpdate($type);
-		if($type === Level::BLOCK_UPDATE_SCHEDULED){
-			if($this->triggedUntil > $this->getLevel()->getServer()->getTick()){ // or should I use >= here?
-				$this->getLevel()->updateAround($this, Level::BLOCK_UPDATE_REDSTONE);
-				$this->getLevel()->updateAround($this->getSide($this->getAttachSide()), Level::BLOCK_UPDATE_REDSTONE);
-			}
-		}
-	}
-
-	public function isStronglyPowering(Block $block){
-		return $block->equals(Vector3::getSide($this->getAttachSide()));
-	}
+    public function getName(){
+        return "Tripwire Hook";
+    }
 }

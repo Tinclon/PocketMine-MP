@@ -1,6 +1,6 @@
 <?php
 
-/**
+/*
  *
  *  ____            _        _   __  __ _                  __  __ ____
  * |  _ \ ___   ___| | _____| |_|  \/  (_)_ __   ___      |  \/  |  _ \
@@ -14,35 +14,29 @@
  * (at your option) any later version.
  *
  * @author PocketMine Team
- * @link   http://www.pocketmine.net/
+ * @link http://www.pocketmine.net/
  *
  *
- */
+*/
 
-namespace pocketmine\event\entity;
+namespace pocketmine\item;
 
-use pocketmine\entity\Entity;
-use pocketmine\Event;
-use pocketmine\event\Cancellable;
-use pocketmine\math\Vector3;
+use pocketmine\entity\Effect;
 
-/**
- * @deprecated
- */
-class EntityMoveEvent extends EntityEvent implements Cancellable{
-	public static $handlerList = null;
-
-	/** @var \pocketmine\math\Vector3 */
-	private $pos;
-
-	public function __construct(Entity $entity, Vector3 $pos){
-		$this->entity = $entity;
-		$this->pos = $pos;
+class SpiderEye extends Food{
+	public function __construct($meta = 0, $count = 1){
+		parent::__construct(self::SPIDER_EYE, $meta, $count, "Spider Eye");
 	}
 
-	public function getVector(){
-		return $this->pos;
+	public function getFoodRestore() : int{
+		return 2;
 	}
 
+	public function getSaturationRestore() : float{
+		return 3.2;
+	}
 
+	public function getAdditionalEffects() : array{
+		return [Effect::getEffect(Effect::POISON)->setDuration(80)];
+	}
 }

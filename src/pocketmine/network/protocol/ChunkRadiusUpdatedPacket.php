@@ -19,24 +19,22 @@
  *
 */
 
-namespace pocketmine\nbt\tag;
+namespace pocketmine\network\protocol;
 
-use pocketmine\nbt\NBT;
+#include <rules/DataPacket.h>
 
-#include <rules/NBT.h>
 
-class ByteArray extends NamedTag{
+class ChunkRadiusUpdatedPacket extends DataPacket{
+	const NETWORK_ID = Info::CHUNK_RADIUS_UPDATED_PACKET;
 
-	public function getType(){
-		return NBT::TAG_ByteArray;
+	public $radius;
+
+	public function decode(){
 	}
 
-	public function read(NBT $nbt){
-		$this->value = $nbt->get($nbt->getInt());
+	public function encode(){
+		$this->reset();
+		$this->putInt($this->radius);
 	}
 
-	public function write(NBT $nbt){
-		$nbt->putInt(strlen($this->value));
-		$nbt->put($this->value);
-	}
 }

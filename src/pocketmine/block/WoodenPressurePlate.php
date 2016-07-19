@@ -21,14 +21,12 @@
 
 namespace pocketmine\block;
 
-use pocketmine\entity\Entity;
-use pocketmine\entity\Snowball;
-
-class WoodenPressurePlate extends StonePressurePlate{
+class WoodenPressurePlate extends Solid{
+	
 	protected $id = self::WOODEN_PRESSURE_PLATE;
 
-	public function acceptsEntity(Entity $entity){
-		return !($entity instanceof Snowball);
+	public function __construct($meta = 0) {
+		$this->meta = $meta;
 	}
 
 	public function getName(){

@@ -23,10 +23,10 @@ namespace pocketmine\block;
 
 use pocketmine\item\Item;
 use pocketmine\level\Level;
-use pocketmine\nbt\tag\Byte;
-use pocketmine\nbt\tag\Compound;
-use pocketmine\nbt\tag\Int;
-use pocketmine\nbt\tag\String;
+use pocketmine\nbt\tag\ByteTag;
+use pocketmine\nbt\tag\CompoundTag;
+use pocketmine\nbt\tag\IntTag;
+use pocketmine\nbt\tag\StringTag;
 use pocketmine\Player;
 use pocketmine\tile\Spawnable;
 use pocketmine\tile\Tile;
@@ -56,16 +56,16 @@ class MobHead extends Solid{
 				$rot = $face;
 			}
 			$this->getLevel()->setBlock($block, $this, true);
-			$nbt = new Compound("", [
-				new String("id", Tile::SKULL),
-				new Byte("SkullType", $item->getDamage()),
-				new Byte("Rot",  $rot),
-				new Int("x", (int) $this->x),
-				new Int("y", (int) $this->y),
-				new Int("z", (int) $this->z)
+			$nbt = new CompoundTag("", [
+				new StringTag("id", Tile::SKULL),
+				new ByteTag("SkullType", $item->getDamage()),
+				new ByteTag("Rot",  $rot),
+				new IntTag("x", (int) $this->x),
+				new IntTag("y", (int) $this->y),
+				new IntTag("z", (int) $this->z)
 			]);
 			if($item->hasCustomName()){
-				$nbt->CustomName = new String("CustomName", $item->getCustomName());
+				$nbt->CustomName = new StringTag("CustomName", $item->getCustomName());
 			}
 			/** @var Spawnable $tile */
 			Tile::createTile("Skull", $this->getLevel()->getChunk($this->x >> 4, $this->z >> 4), $nbt);

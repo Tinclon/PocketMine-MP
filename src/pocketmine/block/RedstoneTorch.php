@@ -21,35 +21,16 @@
 
 namespace pocketmine\block;
 
-use pocketmine\item\Item;
-use pocketmine\level\Level;
 
-class RedstoneTorch extends Torch implements RedstonePowerSource{
+class RedstoneTorch extends Solid {
 
-	protected $id = self::REDSTONE_TORCH;
+    protected $id = self::REDSTONE_TORCH;
 
-	public function onUpdate($type){
-		parent::onUpdate($type);
-		if(($type === Level::BLOCK_UPDATE_REDSTONE or $type === Level::BLOCK_UPDATE_SCHEDULED) and $this->getSide($this->getAttachSide())->isRedstoneActivated()){
-			$this->getLevel()->setBlock($this, new UnlitRedstoneTorch($this->getDamage()));
-		}
-	}
+    public function __construct($meta = 0){
+        $this->meta = $meta;
+    }
 
-	public function getPowerLevel(){
-		return 16;
-	}
-
-	public function isStronglyPowering(Block $block){
-		return false;
-	}
-
-	public function getDrops(Item $item){
-		return [
-			[self::REDSTONE_TORCH, 0, 1]
-		];
-	}
-
-	public function getPoweringSides(){
-		return [];
-	}
+    public function getName(){
+        return "Redstone Torch";
+    }
 }

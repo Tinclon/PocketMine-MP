@@ -22,6 +22,7 @@
 namespace pocketmine\block;
 
 use pocketmine\item\Item;
+use pocketmine\item\Tool;
 
 class DoubleWoodSlab extends Solid{
 
@@ -50,7 +51,7 @@ class DoubleWoodSlab extends Solid{
 			6 => "",
 			7 => ""
 		];
-		return "Double " . $names[$this->meta & 0x07] . " Wooden Slab";
+		return "DoubleTag " . $names[$this->meta & 0x07] . " Wooden Slab";
 	}
 
 	public function getDrops(Item $item){

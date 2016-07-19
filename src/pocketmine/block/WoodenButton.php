@@ -21,14 +21,15 @@
 
 namespace pocketmine\block;
 
-class WoodenButton extends StoneButton{
-	protected $id = self::WOODEN_BUTTON;
+class WoodenButton extends Solid {
 
-	public function getName(){
-		return "Wooden Button";
-	}
+    protected $id = self::WOODEN_BUTTON;
 
-	protected function getDelay(){
-		return 30;
-	}
+    public function __construct($meta = 0){
+        $this->meta = $meta;
+    }
+
+    public function getName(){
+        return "Wooden Button";
+    }
 }

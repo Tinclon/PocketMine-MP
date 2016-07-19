@@ -21,91 +21,15 @@
 
 namespace pocketmine\block;
 
-use pocketmine\entity\Creature;
-use pocketmine\entity\Entity;
-use pocketmine\level\Level;
-use pocketmine\math\AxisAlignedBB;
+class StonePressurePlate extends Solid {
 
-class StonePressurePlate extends Transparent implements RedstonePowerSource, Attaching{
 	protected $id = self::STONE_PRESSURE_PLATE;
-	protected $lastCollide = 0;
 
 	public function __construct($meta = 0){
 		$this->meta = $meta;
 	}
 
-	public function getAttachSide(){
-		return self::SIDE_DOWN;
-	}
-
-	public function canAttachTo(Block $block){
-		return !$block->isTransparent() or (
-			($block instanceof Slab and ($block->getDamage() & 8))
-			or $block instanceof Fence
-			or ($block instanceof Stair and ($block->getDamage() & 4))
-			or $block instanceof NetherBrickFence
-		);
-	}
-
-	public function getPowerLevel(){
-		return (($this->meta & 8) > 0) ? 16 : 0;
-	}
-
-	public function isStronglyPowering(Block $block){
-		return (($this->meta & 8) > 0) and $this->subtract(0, 1, 0)->equals($block);
-	}
-
-	public function onEntityCollide(Entity $entity){
-		if($this->acceptsEntity($entity) and $this->getBoundingBox()->intersectsWith($entity->getBoundingBox())){
-			$this->lastCollide = $this->getLevel()->getServer()->getTick();
-			if(!($this->meta & 8)){
-				$this->meta |= 8;
-				$this->boundingBox = null;
-				$this->getLevel()->setBlock($this, $this);
-				$this->getLevel()->scheduleUpdate($this, 20);
-			}
-		}
-	}
-
-	protected function acceptsEntity(Entity $entity){
-		return $entity instanceof Creature;
-	}
-
-	public function onUpdate($type){
-		if($type === Level::BLOCK_UPDATE_SCHEDULED){
-			if($this->getLevel()->getServer()->getTick() - $this->lastCollide < 10){
-				$this->getLevel()->scheduleUpdate($this, 10);
-			}
-			$this->meta ^= 8;
-			$this->boundingBox = null;
-			$this->getLevel()->setBlock($this, $this);
-		}
-	}
-
 	public function getName(){
 		return "Stone Pressure Plate";
-	}
-
-	public function hasEntityCollision(){
-		return true;
-	}
-
-	public function recalculateBoundingBox(){
-		return new AxisAlignedBB(
-			$this->x,
-			$this->y,
-			$this->z,
-			$this->x + 1,
-			$this->y + (($this->meta & 8) ? 0.03125 : 0.0625),
-			$this->z + 1
-		);
-	}
-
-	public function canPassThrough(){
-		return true;
-	}
-
-	public function getPoweringSides(){
-		return [self::SIDE_DOWN];
 	}
 }
